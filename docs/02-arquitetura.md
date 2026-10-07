@@ -1,6 +1,6 @@
 # 02 · Arquitetura
 
-> **Documento vivo.** Versão 0.1, de 07/10/2026. Ele responde a uma pergunta: **onde eu mexo para alterar isto?** Os requisitos citados (RF, RNF) estão em [01 · Visão e requisitos](01-visao-e-requisitos.md).
+> **Documento vivo.** Versão 0.2, de 07/10/2026. Ele responde a uma pergunta: **onde eu mexo para alterar isto?** Os requisitos citados (RF, RNF) estão em [01 · Visão e requisitos](01-visao-e-requisitos.md).
 
 **Neste documento:** [1. Visão geral](#1-visão-geral) · [2. Camadas do app](#2-camadas-do-app) · [3. Camadas da API](#3-camadas-da-api) · [4. Pastas](#4-estrutura-de-pastas) · [5. Navegação](#5-mapa-de-navegação) · [6. Sequências](#6-fluxos-com-a-api) · [7. Ciclos de vida](#7-ciclos-de-vida) · [8. Dados](#8-modelo-de-dados) · [9. API REST](#9-api-rest) · [10. Segurança](#10-segurança-e-cegamento) · [11. Bibliotecas](#11-bibliotecas-e-o-papel-de-cada-uma) · [12. Decisões](#12-decisões-de-arquitetura)
 
@@ -8,7 +8,7 @@
 
 ## 1. Visão geral
 
-Um único app Expo roda na web, no Android e no iOS e fala com uma API REST própria. Administrador, patologista e validador usam o mesmo app: o que muda entre eles são as telas e o que a API deixa cada um ver. A API é a única que acessa o banco, os arquivos de imagem e o e-mail, e é nela que ficam as regras de cegamento, versionamento e log.
+Um único app Expo roda na web, no Android e no iOS e fala com uma API REST própria. Administrador, patologista e validador usam o mesmo app: o que muda entre eles são as telas e o que a API deixa cada um ver. A API é a única que acessa o banco, os arquivos de imagem e o e-mail, e é nela que ficam as regras de cegamento, versionamento e log. O banco é um PostgreSQL gerenciado pelo **Supabase** ([D9](#12-decisões-de-arquitetura)). O app nunca fala com o Supabase diretamente e não recebe nenhuma chave dele.
 
 ```mermaid
 flowchart LR
@@ -18,22 +18,23 @@ flowchart LR
         IOS["iOS"]
     end
 
-    subgraph Servidor["Servidor · containers"]
-        API["API REST<br/>NestJS"]
-        DB[("PostgreSQL<br/>dados, versões e log")]
-        ARQ[("Imagens<br/>armazenamento privado")]
+    API["API REST<br/>NestJS · container"]
+
+    subgraph Supabase["Supabase · região São Paulo"]
+        DB[("PostgreSQL 17<br/>dados, versões e log")]
     end
 
+    ARQ[("Imagens<br/>armazenamento privado")]
     SMTP["E-mail SMTP<br/>código 2FA e<br/>recuperação de senha"]
 
     WEB & AND & IOS -->|"HTTPS + JSON"| API
-    API --> DB
+    API -->|"Prisma"| DB
     API --> ARQ
     API --> SMTP
     App -.->|"imagem por URL<br/>assinada de 5 min"| ARQ
 ```
 
-Em desenvolvimento, PostgreSQL e Mailpit (que captura os e-mails) sobem com `docker compose`, e as imagens ficam numa pasta privada da API. Em produção, o mesmo código usa qualquer armazenamento compatível com S3 ([D7](#12-decisões-de-arquitetura)).
+Em desenvolvimento, `npx supabase start` sobe na própria máquina o mesmo stack do Supabase (PostgreSQL, o painel Studio e o Mailpit, que captura os e-mails) em containers Docker. As imagens ficam numa pasta privada da API. Em produção, a API usa o projeto Supabase na nuvem e qualquer armazenamento compatível com S3, inclusive o próprio Supabase Storage ([D7](#12-decisões-de-arquitetura)).
 
 ## 2. Camadas do app
 
@@ -69,7 +70,7 @@ flowchart LR
     G --> C["Controllers<br/>rotas e validação<br/>com Zod"]
     C --> SV["Services<br/>regras de negócio,<br/>cegamento e versões"]
     SV --> RP["Repositórios<br/>Prisma"]
-    RP --> DB[("PostgreSQL")]
+    RP --> DB[("Supabase<br/>PostgreSQL")]
     SV --> ST["StorageService<br/>disco local ou S3"]
     SV --> AU["AuditoriaService<br/>log somente-inclusão"]
     AU --> DB
@@ -122,8 +123,9 @@ ki67/
 │       └── test/                   # testes e2e, incluindo a bateria de cegamento
 ├── packages/
 │   └── shared/                     # tipos, schemas Zod, cálculo do índice, formatos de exportação
+├── supabase/
+│   └── config.toml                 # Supabase local: versão do Postgres, portas e SMTP do Mailpit
 ├── docs/                           # esta documentação
-├── docker-compose.yml              # PostgreSQL e Mailpit para desenvolvimento
 ├── .env.example                    # variáveis de ambiente, sem segredos
 └── package.json                    # workspaces e scripts da raiz
 ```
@@ -139,7 +141,8 @@ ki67/
 | O que fica salvo no aparelho | `apps/mobile/src/storage/` |
 | Cores, fontes e tamanho mínimo de toque | `apps/mobile/src/theme/` |
 | Uma regra de negócio (quem pode ver ou fazer o quê) | `apps/api/src/<módulo>/<módulo>.service.ts` e os guards em `apps/api/src/common/` |
-| Uma tabela ou coluna do banco | `apps/api/prisma/schema.prisma`, gerando uma migração nova |
+| Uma tabela ou coluna do banco | `apps/api/prisma/schema.prisma`, gerando uma migração nova. As migrações do Prisma são a única fonte do esquema: não crie tabelas pelo painel do Supabase |
+| Versão do PostgreSQL, portas ou e-mail do ambiente local | `supabase/config.toml` (o `major_version` precisa ser igual ao do projeto na nuvem) |
 | O formato das marcações ou o cálculo do índice | `packages/shared/` (usado pelo app e pela API) |
 | Uma variável de ambiente | `.env.example`, com comentário explicando o valor |
 
@@ -204,7 +207,7 @@ sequenceDiagram
     actor U as Usuário
     participant App
     participant API as API NestJS
-    participant DB as PostgreSQL
+    participant DB as Banco Supabase
     participant Mail as E-mail SMTP
 
     U->>App: Informa e-mail e senha
@@ -250,7 +253,7 @@ sequenceDiagram
     actor P as Patologista
     participant App
     participant API as API NestJS
-    participant DB as PostgreSQL
+    participant DB as Banco Supabase
     participant ARQ as Armazenamento
 
     P->>App: Toca numa imagem da aba Pendentes
@@ -285,7 +288,7 @@ sequenceDiagram
     participant App
     participant Local as Rascunho local
     participant API as API NestJS
-    participant DB as PostgreSQL
+    participant DB as Banco Supabase
 
     P->>App: Marca, corrige ou remove núcleos
     App->>Local: Grava o rascunho a cada alteração
@@ -324,7 +327,7 @@ sequenceDiagram
     participant App
     participant API as API NestJS
     participant ARQ as Armazenamento
-    participant DB as PostgreSQL
+    participant DB as Banco Supabase
 
     A->>App: Escolhe o lote e seleciona os arquivos
     loop Para cada arquivo
@@ -538,6 +541,7 @@ Garantias que o próprio banco impõe, além da aplicação:
 | Log que ninguém altera | Trigger que rejeita `UPDATE` e `DELETE`, permissão só de `INSERT` e `SELECT` e hash encadeado entre registros | RF-38 |
 | Original imutável | `sha256` único e arquivo gravado uma única vez, sem rota de sobrescrita | RF-11 |
 | No máximo 3 análises por imagem de validação | Verificação no service e trigger de contagem | RF-29 |
+| Só a API chega aos dados | RLS ligado em todas as tabelas, sem nenhuma política, e Data API do Supabase desativada: o PostgREST não lê nem grava nada | RF-28 |
 
 ## 9. API REST
 
@@ -577,6 +581,15 @@ O cegamento (RF-26 a RF-28) é garantido em quatro níveis, do mais externo ao m
 3. **O que você pode ver.** Todo repositório que busca análises recebe o id do usuário e filtra por ele. As respostas para o patologista usam DTOs que nem têm campos de outros usuários. Pedir a análise de outra pessoa devolve **404, e não 403**, para não confirmar que ela existe.
 4. **Como provamos.** A bateria e2e de cegamento ([cenários críticos](01-visao-e-requisitos.md#6-cenários-críticos)) roda no CI a cada pull request.
 
+### O Supabase não é uma porta de entrada
+
+Todo projeto Supabase publica as tabelas do esquema `public` numa API REST automática (Data API, via PostgREST). Se isso ficasse aberto, alguém poderia ler as análises sem passar pelas regras da nossa API e furar o cegamento. Por isso:
+
+- a **Data API fica desativada** no projeto, e o **RLS fica ligado em todas as tabelas, sem nenhuma política**, como segunda barreira caso ela seja reativada por engano;
+- o **app não recebe nenhuma chave do Supabase** (nem `anon`, nem `service_role`); só a API tem a string de conexão, guardada no `.env` do servidor;
+- a API se conecta com o usuário de banco `ki67_api`, que não tem `UPDATE` nem `DELETE` no log e nas versões; o usuário `postgres` só roda migrações;
+- o Supabase Auth não é usado: login, 2FA por e-mail e sessão ficam na API ([D3](#12-decisões-de-arquitetura)).
+
 Também valem: senhas com argon2id; no máximo 5 tentativas de login ou de código a cada 15 min; mensagens de erro genéricas; HTTPS obrigatório fora do ambiente local; CORS só para a origem do app web; cabeçalhos de segurança com `helmet`; imagens privadas servidas por URL assinada de 5 min com `Cache-Control: no-store`; e log com trigger, permissões e hash encadeado.
 
 ### Sessão em cada plataforma
@@ -607,6 +620,8 @@ Versões fixadas pelo Expo SDK 57 (`npx expo install` escolhe as compatíveis) e
 | Zod | 4 | shared | Schemas das marcações e das requisições, validados com o mesmo código no app e na API |
 | NestJS | 12 | api | Módulos, guards de papel, interceptors de auditoria e injeção de dependência |
 | Prisma ORM | 7.10 | api | Schema do banco, migrações versionadas e consultas tipadas |
+| Supabase (PostgreSQL gerenciado) | PostgreSQL 17 | banco | Banco na nuvem com backups, painel e região em São Paulo |
+| Supabase CLI | 2 | dev | Sobe o mesmo stack local com `npx supabase start`: PostgreSQL, Studio e Mailpit |
 | argon2 | 0.45 | api | Hash das senhas |
 | sharp | 0.35 | api | Lê dimensões e metadados e gera a cópia reduzida das imagens grandes |
 | Nodemailer | 10 | api | Envio do código 2FA e do link de recuperação por SMTP |
@@ -619,15 +634,17 @@ Versões fixadas pelo Expo SDK 57 (`npx expo install` escolhe as compatíveis) e
 | --- | --- | --- | --- |
 | D1 | Expo + React Native, com React Native Web no navegador | Uma base para três plataformas (RNF-01), e é a stack da disciplina | Flutter (bom canvas, mas fora da stack da disciplina); PWA pura (gestos e armazenamento seguro limitados no iOS) |
 | D2 | Canvas com Skia | Milhares de marcações na GPU e o mesmo código na web (RNF-03) | `react-native-svg` (um elemento por ponto pesa acima de algumas centenas); WebView com canvas HTML (duas bases de código de anotação) |
-| D3 | API própria em NestJS, em vez de BaaS | 2FA por e-mail, cegamento, versões e log num lugar só e testável (RF-02, RF-28) | Firebase e Supabase: 2FA por e-mail não é nativo e as regras ficariam espalhadas em políticas do provedor |
+| D3 | Regras de negócio numa API própria em NestJS; o Supabase entra só como banco | 2FA por e-mail, cegamento, versões e log num lugar só e testável (RF-02, RF-28) | App falando direto com o Supabase (Auth + RLS): o 2FA por e-mail não é nativo no Supabase Auth e as regras de cegamento ficariam espalhadas em políticas de banco; Firebase (mesmos motivos, e banco NoSQL) |
 | D4 | Cada versão é um snapshot imutável das marcações (JSONB) | Histórico, restauração e diff simples; nada é sobrescrito (RF-33 a RF-35) | Tabela de marcações com `UPDATE` (perde histórico); event sourcing (complexo demais para o prazo) |
 | D5 | Coordenadas em pixels da imagem original | Não dependem de tela nem de zoom, o que garante a paridade (RNF-02) e a exportação direta para Labelme e COCO | Coordenadas relativas à tela |
 | D6 | Log no próprio PostgreSQL, com trigger, permissões e hash encadeado | O somente-inclusão é garantido pelo banco, não só pela aplicação (RF-38) | Arquivo de log no servidor (fácil de editar); serviço externo (custo e dependência) |
-| D7 | Armazenamento de imagens atrás de uma interface (disco local ou S3) | A hospedagem ainda está em aberto (Q9) e o desenvolvimento roda sem conta em nuvem | Fixar um provedor agora |
+| D7 | Armazenamento de imagens atrás de uma interface (disco local ou S3) | O desenvolvimento roda sem conta em nuvem, e em produção o driver S3 serve tanto para o Supabase Storage quanto para outro provedor (Q9) | Fixar um provedor agora |
 | D8 | Monorepo com npm workspaces e pacote `shared` | Tipos, schemas e cálculo do índice iguais no app e na API | Repositórios separados (tipos duplicados e versões descasadas) |
+| D9 | Banco PostgreSQL gerenciado no Supabase | PostgreSQL completo, então triggers, permissões e JSONB (D4, D6) continuam valendo; backups, painel e região em São Paulo prontos; plano gratuito para o semestre; o Supabase CLI sobe o mesmo banco em qualquer máquina | PostgreSQL em container próprio (instalação, backup e atualização por conta do grupo); Firebase (NoSQL, sem joins nem triggers) |
 
 ---
 
 | Versão | Data | Mudança |
 | --- | --- | --- |
 | 0.1 | 07/10/2026 | Arquitetura inicial: camadas, navegação, sequências, ciclos de vida, dados, API e decisões. |
+| 0.2 | 07/10/2026 | Banco passa a ser o Supabase (D9): visão geral, pastas, segurança da Data API e RLS, bibliotecas e D3/D7 revistas. |

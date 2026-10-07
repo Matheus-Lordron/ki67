@@ -1,6 +1,6 @@
 # 03 · Planejamento
 
-> **Documento vivo.** Versão 0.1, de 07/10/2026. Cronograma, organização do repositório e regras de trabalho do grupo. Quando uma data ou uma regra mudar, este arquivo muda no mesmo pull request.
+> **Documento vivo.** Versão 0.2, de 07/10/2026. Cronograma, organização do repositório e regras de trabalho do grupo. Quando uma data ou uma regra mudar, este arquivo muda no mesmo pull request.
 
 **Neste documento:** [1. Marcos](#1-marcos-e-entregas) · [2. Cronograma](#2-cronograma) · [3. Backlog por sprint](#3-backlog-do-mvp-por-sprint) · [4. Branches](#4-estratégia-de-branches) · [5. Commits](#5-convenção-de-commits) · [6. Definition of Done](#6-definition-of-done) · [7. Riscos](#7-riscos) · [8. Licença](#8-licença)
 
@@ -34,7 +34,7 @@ gantt
     Entrega da documentação                  :milestone, m1, after doc, 0d
 
     section Sprint 0 · Fundação
-    Monorepo, Docker, CI e app vazio         :s0, after doc, 5d
+    Monorepo, Supabase, CI e app vazio       :s0, after doc, 5d
     Prova de conceito do canvas Skia         :crit, poc, after doc, 7d
 
     section MVP
@@ -56,7 +56,7 @@ A fase 2 ([escopo](01-visao-e-requisitos.md#4-escopo-por-fase)) não tem data: e
 
 | Sprint | Objetivo | Requisitos | Pronto quando |
 | --- | --- | --- | --- |
-| 0 · Fundação | Um esqueleto que roda do zero nas três plataformas | RNF-01, RNF-03 (prova de conceito), RNF-13 | `npm run dev:app` abre na web, no Android e no iOS; a API responde em `/api/v1/saude`; o CI está verde; o canvas com 2.000 pontos foi medido |
+| 0 · Fundação | Um esqueleto que roda do zero nas três plataformas | RNF-01, RNF-03 (prova de conceito), RNF-13 | `npm run dev:app` abre na web, no Android e no iOS; a API responde em `/api/v1/saude` conectada ao Supabase local; o projeto Supabase na nuvem existe (região São Paulo, Data API desativada); o CI está verde; o canvas com 2.000 pontos foi medido |
 | 1 · Autenticação e usuários | Entrar com segurança e gerenciar a equipe | RF-01 a RF-07; RF-37 para os eventos de login | Login, 2FA e recuperação de senha passam nos critérios; o admin cria, edita e desativa usuários |
 | 2 · Imagens e atribuição | O admin distribui o trabalho | RF-08 a RF-11, RF-22, RF-24, RF-25 | Upload em lote com hash, atribuição por lote, abas e painel com dados reais |
 | 3 · Anotação | O núcleo do produto | RF-12, RF-15, RF-16, RF-20, RF-21, RF-33, RF-34 | Anotar, salvar, finalizar e restaurar versões na web e no celular |
@@ -162,6 +162,7 @@ Uma tarefa só fecha quando **todos** os itens batem. Código alterado com docum
 | Perguntas em aberto (Q1 a Q10) mudarem o escopo | Médio | Premissas registradas em [01 · Visão e requisitos](01-visao-e-requisitos.md#11-perguntas-em-aberto) e escolhidas para serem baratas de mudar; revisão com o cliente na Sprint 1 |
 | As imagens reais serem lâminas inteiras (WSI) | Alto | MVP limitado a campos capturados; WSI com tiles só na fase 2 |
 | Dados sensíveis de pacientes (LGPD e CEP) | Alto | Só imagens anonimizadas; nenhuma imagem real no repositório; desenvolvimento com imagens sintéticas ou de bases públicas |
+| Limites do plano gratuito do Supabase (projeto pausado depois de dias sem uso, cotas de banco e sem backup automático) | Médio | Desenvolvimento no Supabase local; `pg_dump` agendado no CI; revisar o plano antes de usar imagens reais do estudo |
 | Prazo do semestre | Médio | MVP enxuto e fase 2 explicitamente fora do semestre |
 | Integrante indisponível | Médio | Pull requests pequenos, revisão cruzada e documentação viva, para ninguém ser o único que sabe uma parte |
 
@@ -174,3 +175,4 @@ Uma tarefa só fecha quando **todos** os itens batem. Código alterado com docum
 | Versão | Data | Mudança |
 | --- | --- | --- |
 | 0.1 | 07/10/2026 | Cronograma, backlog por sprint, branches, commits, Definition of Done, riscos e licença. |
+| 0.2 | 07/10/2026 | Sprint 0 passa a configurar o Supabase; novo risco sobre o plano gratuito. |

@@ -1,6 +1,6 @@
 # 01 · Visão e requisitos
 
-> **Documento vivo.** Versão 0.1, de 07/10/2026. Nasceu do levantamento de requisitos de 23/09/2026 e das anotações de reunião do grupo. Toda mudança de comportamento do app atualiza este arquivo no mesmo pull request (veja a [Definition of Done](03-planejamento.md#6-definition-of-done)).
+> **Documento vivo.** Versão 0.2, de 07/10/2026. Nasceu do levantamento de requisitos de 23/09/2026 e das anotações de reunião do grupo. Toda mudança de comportamento do app atualiza este arquivo no mesmo pull request (veja a [Definition of Done](03-planejamento.md#6-definition-of-done)).
 
 **Neste documento:** [1. Problema e público](#1-problema-e-público) · [2. Objetivos](#2-objetivos) · [3. Papéis](#3-papéis) · [4. Escopo por fase](#4-escopo-por-fase) · [5. Requisitos funcionais](#5-requisitos-funcionais) · [6. Cenários críticos](#6-cenários-críticos) · [7. Requisitos não funcionais](#7-requisitos-não-funcionais) · [8. Privacidade e LGPD](#8-privacidade-e-lgpd) · [9. Regras de negócio](#9-regras-de-negócio) · [10. Fora do escopo](#10-fora-do-escopo) · [11. Perguntas em aberto](#11-perguntas-em-aberto) · [12. Glossário](#12-glossário)
 
@@ -205,7 +205,7 @@ O app é cross-platform: uma base de código para web, Android e iOS, com o mesm
 | RNF-06 | Segurança | HTTPS; senhas com hash argon2id; imagens em armazenamento privado com URL assinada de 5 min; nada sensível em cache aberto no aparelho. | URL assinada expirada retorna 403; respostas de imagem trazem `Cache-Control: no-store`; o token fica no SecureStore (Android/iOS) ou em cookie `httpOnly` (web), nunca em AsyncStorage ou localStorage; login e código 2FA aceitam no máximo 5 tentativas a cada 15 min. |
 | RNF-07 | LGPD | Imagens anonimizadas (sem nome do paciente em metadados ou no rótulo da lâmina), base legal definida e aprovação no CEP, por ser pesquisa. Detalhes na [seção 8](#8-privacidade-e-lgpd). | O upload alerta sobre metadados de texto (EXIF/TIFF) antes de aceitar o arquivo; não existe dado de paciente no banco, no repositório nem nos seeds. |
 | RNF-08 | Rastreabilidade | Toda anotação vinculada a usuário, versão, data/hora e dispositivo. | Autor, data/hora (UTC), número sequencial e dispositivo (plataforma e versão do app) são campos obrigatórios de toda versão. |
-| RNF-09 | Backup | Backup periódico de banco, imagens e logs. | Backup diário automático do PostgreSQL e do armazenamento de imagens, com retenção de 30 dias; uma restauração completa é testada antes de cada entrega. |
+| RNF-09 | Backup | Backup periódico de banco, imagens e logs. | Backup diário do banco no Supabase, com retenção de 30 dias: o backup automático do Supabase, que depende do plano contratado, ou um `pg_dump` agendado no CI enquanto o projeto estiver no plano gratuito. O armazenamento de imagens tem cópia diária própria, e uma restauração completa é testada antes de cada entrega. |
 | RNF-10 | Usabilidade | Atalhos de teclado na web; pinça e toque longo no mobile; alvos de toque grandes o bastante para marcar núcleos. | Atalhos: `1` e `2` trocam a label, `Z` desfaz, `Shift+Z` refaz, espaço + arrastar move. No celular, o toque longo abre o menu do ponto (trocar label, excluir) e uma lupa mostra a área sob o dedo durante a marcação. |
 | RNF-11 | Permissões do dispositivo | O MVP não pede câmera, localização, contatos nem notificações. O upload usa o seletor de arquivos do sistema, que dispensa permissão. | Nenhuma janela de permissão aparece no primeiro uso. Se a fase 2 trouxer notificações (por exemplo, "nova imagem atribuída"), o pedido acontece só na hora do uso e explica o motivo. |
 | RNF-12 | Acessibilidade | Alvos de toque de pelo menos 44 × 44 pt (iOS) e 48 × 48 dp (Android); contraste mínimo de 4,5:1 (WCAG 2.1 AA); todo botão de ícone com `accessibilityLabel`; labels diferenciadas por símbolo além da cor; textos acompanham o tamanho de fonte do sistema. | Login e listas são percorridos de ponta a ponta com VoiceOver e TalkBack; a auditoria de acessibilidade do Lighthouse fica em 90 ou mais na web. O canvas é visual por natureza: o leitor de tela anuncia a label ativa e as contagens, não cada núcleo. |
@@ -217,15 +217,15 @@ Que dado pessoal o app guarda, onde guarda e por quanto tempo:
 
 | Dado | De quem | Onde fica | Por quanto tempo | Observação |
 | --- | --- | --- | --- | --- |
-| Nome, e-mail e papéis | Usuários | PostgreSQL, no servidor | Enquanto durar o estudo; a conta é desativada, nunca excluída (RF-06) | Necessário para autoria e auditoria |
-| Hash da senha (argon2id) | Usuários | PostgreSQL | Enquanto a conta existir | A senha nunca é guardada em texto puro |
-| Registros de log: ação, data/hora, IP e dispositivo | Usuários | PostgreSQL, tabela somente-inclusão | Pelo prazo do estudo definido no protocolo; não são apagados (RF-38) | Rastreabilidade (RNF-08) |
-| Códigos de 2FA e de recuperação de senha | Usuários | PostgreSQL, apenas o hash | 10 min (2FA) e 30 min (recuperação); depois disso são inválidos | |
+| Nome, e-mail e papéis | Usuários | Banco no Supabase (região São Paulo) | Enquanto durar o estudo; a conta é desativada, nunca excluída (RF-06) | Necessário para autoria e auditoria |
+| Hash da senha (argon2id) | Usuários | Banco no Supabase | Enquanto a conta existir | A senha nunca é guardada em texto puro |
+| Registros de log: ação, data/hora, IP e dispositivo | Usuários | Banco no Supabase, tabela somente-inclusão | Pelo prazo do estudo definido no protocolo; não são apagados (RF-38) | Rastreabilidade (RNF-08) |
+| Códigos de 2FA e de recuperação de senha | Usuários | Banco no Supabase, apenas o hash | 10 min (2FA) e 30 min (recuperação); depois disso são inválidos | |
 | Imagens das lâminas | Pacientes, de forma indireta | Armazenamento privado no servidor | Conforme o protocolo aprovado no CEP | Chegam anonimizadas: sem nome, prontuário ou rótulo da lâmina |
 | Sessão | Usuário | SecureStore (Android/iOS) ou cookie `httpOnly` (web) | Até o logout ou a expiração | O logout apaga |
 | Rascunho da análise aberta | Usuário | Armazenamento do app no aparelho | Até o servidor confirmar o salvamento, ou até o logout | Só coordenadas, labels e observação; nenhuma imagem é gravada no aparelho |
 
-**Base legal.** Imagens corretamente anonimizadas deixam de ser dado pessoal (art. 12 da LGPD). Para o estudo em si e para os dados dos usuários, a base legal (por exemplo, realização de estudos por órgão de pesquisa, art. 7º, IV e art. 11, II, "c") será confirmada com a instituição e com o Comitê de Ética em Pesquisa antes do uso com imagens reais. Até lá, o desenvolvimento usa apenas imagens sintéticas ou de bases públicas com licença compatível.
+**Base legal.** Imagens corretamente anonimizadas deixam de ser dado pessoal (art. 12 da LGPD). Para o estudo em si e para os dados dos usuários, a base legal (por exemplo, realização de estudos por órgão de pesquisa, art. 7º, IV e art. 11, II, "c") será confirmada com a instituição e com o Comitê de Ética em Pesquisa antes do uso com imagens reais. O banco fica num serviço de terceiros (Supabase), então o projeto é criado na região de São Paulo, para os dados permanecerem no Brasil, e os termos de tratamento de dados do provedor entram nessa avaliação. Até lá, o desenvolvimento usa apenas imagens sintéticas ou de bases públicas com licença compatível.
 
 ## 9. Regras de negócio
 
@@ -268,7 +268,7 @@ Estas decisões mudam escopo ou arquitetura. Enquanto não forem fechadas com o 
 | Q6 | O patologista vai anotar no celular ou só no tablet e no desktop? | Funciona no celular, mas a experiência é desenhada primeiro para tablet e desktop. | RNF-10, layout |
 | Q7 | Anota a imagem toda ou escolhe hotspots antes de contar? | Imagem toda: o campo capturado já é a região escolhida. | Modelo de dados, índice |
 | Q8 | Quantas imagens e usuários são esperados? | Dezenas de usuários, alguns milhares de imagens e até cerca de 2.000 pontos por imagem. | RNF-03, hospedagem |
-| Q9 | Nuvem ou servidor da instituição? | API e banco em containers, que rodam nos dois cenários; imagens atrás de uma interface local/S3. | Implantação, backup, LGPD |
+| Q9 | Nuvem ou servidor da instituição? | **Banco decidido:** Supabase na nuvem, região São Paulo. Ainda em aberto: onde roda a API (container, nuvem ou servidor da instituição) e onde ficam as imagens (Supabase Storage ou outro serviço compatível com S3). | Implantação, backup, LGPD |
 | Q10 | Flutter, React Native + web ou outra stack? | **Decidida:** React Native com Expo (web via React Native Web) e canvas Skia, revista depois da prova de conceito da Sprint 0. | Toda a [arquitetura](02-arquitetura.md) |
 
 ## 12. Glossário
@@ -296,3 +296,4 @@ Estas decisões mudam escopo ou arquitetura. Enquanto não forem fechadas com o 
 | Versão | Data | Mudança |
 | --- | --- | --- |
 | 0.1 | 07/10/2026 | Estrutura inicial a partir do levantamento de requisitos de 23/09/2026. |
+| 0.2 | 07/10/2026 | Banco no Supabase: LGPD (onde ficam os dados), backup (RNF-09) e Q9 parcialmente decidida. |

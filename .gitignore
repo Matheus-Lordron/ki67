@@ -21,6 +21,10 @@ expo-env.d.ts
 apps/mobile/ios/
 apps/mobile/android/
 
+# Supabase CLI (arquivos temporários do stack local)
+supabase/.branches/
+supabase/.temp/
+
 # API
 apps/api/storage/
 coverage/

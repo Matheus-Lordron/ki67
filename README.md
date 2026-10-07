@@ -8,6 +8,7 @@
 [![Plataformas: web, Android e iOS](https://img.shields.io/badge/plataformas-web%20%7C%20Android%20%7C%20iOS-334155)](docs/01-visao-e-requisitos.md#7-requisitos-não-funcionais)
 [![Expo SDK 57](https://img.shields.io/badge/Expo%20SDK-57-000020?logo=expo&logoColor=white)](https://docs.expo.dev/versions/latest/)
 [![TypeScript 6.0](https://img.shields.io/badge/TypeScript-6.0-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![Supabase](https://img.shields.io/badge/Supabase-PostgreSQL%2017-3FCF8E?logo=supabase&logoColor=white)](https://supabase.com/docs)
 [![Licença MIT](https://img.shields.io/badge/licen%C3%A7a-MIT-yellow)](LICENSE)
 
 [Visão e requisitos](docs/01-visao-e-requisitos.md) · [Arquitetura](docs/02-arquitetura.md) · [Planejamento](docs/03-planejamento.md)
@@ -66,7 +67,8 @@ Cada passo gera um registro no log de auditoria. As etapas tracejadas entram na 
 | Canvas e gestos | React Native Skia 2.6 · Gesture Handler 2.32 · Reanimated 4.5 |
 | Armazenamento no aparelho | expo-secure-store 57 (sessão) · AsyncStorage 2.2 (rascunho da análise) |
 | API | Node.js 24 LTS · NestJS 12 · Prisma ORM 7.10 · Zod 4 |
-| Banco e infraestrutura | PostgreSQL 17 · Docker Compose · Mailpit (captura os e-mails em desenvolvimento) |
+| Banco de dados | Supabase (PostgreSQL 17 gerenciado, região São Paulo) · Supabase CLI 2 (o mesmo banco rodando local) |
+| E-mail em desenvolvimento | Mailpit, incluído no Supabase local (captura os e-mails sem enviá-los) |
 | Testes e qualidade | Jest 30 · jest-expo 57 · Testing Library 14 · Supertest 7 · ESLint |
 
 O papel de cada biblioteca e o porquê de cada escolha estão em [02 · Arquitetura](docs/02-arquitetura.md#11-bibliotecas-e-o-papel-de-cada-uma).
@@ -82,7 +84,7 @@ O papel de cada biblioteca e o porquê de cada escolha estão em [02 · Arquitet
 | --- | --- | --- |
 | [Git](https://git-scm.com/) | 2.40 ou mais nova | Clonar o repositório |
 | [Node.js](https://nodejs.org/) | 24 LTS (o Expo SDK 57 exige no mínimo 22.13) | App e API |
-| [Docker Desktop](https://www.docker.com/products/docker-desktop/) | Com Docker Compose v2 | PostgreSQL e Mailpit locais |
+| [Docker Desktop](https://www.docker.com/products/docker-desktop/) | Aberto enquanto você desenvolve | O Supabase CLI usa containers para subir o banco local |
 | [Expo Go](https://expo.dev/go) | Versão atual da Play Store ou da App Store | Rodar no celular sem gerar build |
 | Android Studio ou Xcode 26.4+ *(opcional)* | — | Emulador Android ou simulador iOS (Xcode só no macOS) |
 
@@ -91,9 +93,9 @@ O papel de cada biblioteca e o porquê de cada escolha estão em [02 · Arquitet
 ```bash
 git clone https://github.com/Matheus-Lordron/ki67.git
 cd ki67
-npm install            # app, API e pacote compartilhado (npm workspaces)
+npm install            # app, API, pacote compartilhado e Supabase CLI (npm workspaces)
 cp .env.example .env   # no Prompt de Comando do Windows: copy .env.example .env
-docker compose up -d   # PostgreSQL na porta 5432 e Mailpit na 8025
+npx supabase start     # Supabase local: PostgreSQL na 54322, Studio na 54323, Mailpit na 54324
 npm run db:migrate     # cria as tabelas
 npm run db:seed        # cria o admin inicial e as labels reagente e não reagente
 npm run dev:api        # API em http://localhost:3000
@@ -108,7 +110,8 @@ npm run dev:app        # Expo: mostra o QR code e as opções de plataforma
 - **Web:** no terminal do Expo, tecle `w` para abrir http://localhost:8081.
 - **Android:** escaneie o QR code com o app Expo Go.
 - **iOS:** escaneie o QR code com a câmera do iPhone.
-- **Primeiro acesso:** entre com o `SEED_ADMIN_EMAIL` e a `SEED_ADMIN_PASSWORD` do seu `.env`. O código de segundo fator não vai para uma caixa de e-mail real: ele aparece no Mailpit, em http://localhost:8025.
+- **Primeiro acesso:** entre com o `SEED_ADMIN_EMAIL` e a `SEED_ADMIN_PASSWORD` do seu `.env`. O código de segundo fator não vai para uma caixa de e-mail real: ele aparece no Mailpit, em http://127.0.0.1:54324.
+- **Banco:** o Supabase Studio local, em http://127.0.0.1:54323, mostra as tabelas e os dados. O projeto Supabase na nuvem só é usado na implantação; as credenciais dele ficam no `.env` de quem implanta, nunca no repositório.
 
 > [!TIP]
 > **Testando num celular físico?** O `localhost` aponta para o próprio celular. Troque `EXPO_PUBLIC_API_URL` no `.env` pelo IP do computador na rede (por exemplo, `http://192.168.0.15:3000`), deixe os dois no mesmo Wi-Fi e libere a porta 3000 no firewall. No emulador Android, use `http://10.0.2.2:3000`.
@@ -123,6 +126,7 @@ npm run dev:app        # Expo: mostra o QR code e as opções de plataforma
 | `npm run db:seed` | Cria o admin inicial e as labels padrão |
 | `npm test` | Roda os testes do app, da API e do pacote compartilhado |
 | `npm run lint` | ESLint e checagem de tipos em todo o monorepo |
+| `npx supabase stop` | Desliga o Supabase local; os dados continuam salvos para a próxima vez |
 
 ### Problemas comuns
 
@@ -130,8 +134,9 @@ npm run dev:app        # Expo: mostra o QR code e as opções de plataforma
 | --- | --- |
 | O celular não conecta na API | Use o IP do computador em `EXPO_PUBLIC_API_URL`, mesmo Wi-Fi e porta 3000 liberada (veja a dica acima) |
 | "Project is incompatible with this version of Expo Go" | Atualize o Expo Go: o projeto usa o SDK 57 |
-| `docker compose up` falha na porta 5432 | Já existe um PostgreSQL rodando: pare-o ou mude `POSTGRES_PORT` e `DATABASE_URL` no `.env` |
-| O código 2FA não chega | Em desenvolvimento nenhum e-mail sai de verdade: abra o Mailpit em http://localhost:8025 |
+| `npx supabase start` falha logo no início | O Docker Desktop precisa estar aberto antes do comando |
+| `npx supabase start` reclama de porta em uso (54321 a 54324) | Outro projeto Supabase está rodando: rode `npx supabase stop` na pasta dele, ou mude as portas em `supabase/config.toml` |
+| O código 2FA não chega | Em desenvolvimento nenhum e-mail sai de verdade: abra o Mailpit em http://127.0.0.1:54324 |
 
 ## Estrutura do repositório
 
@@ -149,7 +154,7 @@ ki67/
 │   ├── mobile/                   ← app Expo: web, Android e iOS
 │   └── api/                      ← API REST NestJS + Prisma
 ├── packages/shared/              ← tipos, schemas Zod e cálculo do índice
-└── docker-compose.yml            ← PostgreSQL e Mailpit para desenvolvimento
+└── supabase/config.toml          ← configuração do Supabase local (Supabase CLI)
 ```
 
 O que mora em cada pasta, e onde mexer para alterar cada coisa, está em [02 · Arquitetura](docs/02-arquitetura.md#4-estrutura-de-pastas).
