@@ -21,13 +21,17 @@ const url = Deno.env.get('SUPABASE_URL')!;
 const anonKey = () => pickKey('SUPABASE_PUBLISHABLE_KEYS', 'SUPABASE_ANON_KEY');
 const serviceKey = () => pickKey('SUPABASE_SECRET_KEYS', 'SUPABASE_SERVICE_ROLE_KEY');
 
-/** Repassa o IP e o navegador do usuário para o log de auditoria (request.headers no Postgres). */
-function forwardHeaders(req: Request): Record<string, string> {
+/**
+ * Repassa o IP e o navegador do usuário para o log de auditoria (request.headers no Postgres).
+ * Com a chave secreta, o User-Agent do navegador NÃO pode ir junto: o Supabase recusa a
+ * requisição ("Forbidden use of secret API key in browser").
+ */
+function forwardHeaders(req: Request, withUserAgent = true): Record<string, string> {
   const headers: Record<string, string> = {};
   const ip = req.headers.get('x-forwarded-for') ?? req.headers.get('cf-connecting-ip');
   if (ip) headers['x-forwarded-for'] = ip;
   const ua = req.headers.get('user-agent');
-  if (ua) headers['user-agent'] = ua;
+  if (ua && withUserAgent) headers['user-agent'] = ua;
   return headers;
 }
 
@@ -35,7 +39,7 @@ const noSession = { auth: { persistSession: false, autoRefreshToken: false } };
 
 /** Ignora o RLS. Use só depois de conferir quem está chamando. */
 export function serviceClient(req: Request): SupabaseClient {
-  return createClient(url, serviceKey(), { ...noSession, global: { headers: forwardHeaders(req) } });
+  return createClient(url, serviceKey(), { ...noSession, global: { headers: forwardHeaders(req, false) } });
 }
 
 export function anonClient(req: Request): SupabaseClient {

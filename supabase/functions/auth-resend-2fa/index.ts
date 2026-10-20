@@ -16,6 +16,7 @@ Deno.serve(
       p_user_id: user.id,
       p_session_id: sessionId,
     });
+    if (error) console.error('issue_two_factor_code falhou', { code: error.code, message: error.message, details: error.details, sessionId });
     if (error) throw new HttpError(error.code === 'PT429' ? 429 : 500, error.code === 'PT429' ? error.message : 'Não foi possível gerar o código.');
     await sendTwoFactorEmail(user.email ?? session.email ?? '', session.name ?? '', String(code));
     return json(req, { ok: true });
