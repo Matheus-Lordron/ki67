@@ -55,6 +55,8 @@ Deno.serve(
         p_session_id: sessionId,
       });
       if (codeError) {
+        // O app recebe uma mensagem genérica; o motivo real fica em Edge Functions > Logs.
+        console.error('issue_two_factor_code falhou', { code: codeError.code, message: codeError.message, details: codeError.details, sessionId });
         throw new HttpError(codeError.code === 'PT429' ? 429 : 500, codeError.code === 'PT429' ? codeError.message : 'Não foi possível gerar o código.');
       }
       await sendTwoFactorEmail(email, session.name ?? email, String(code));

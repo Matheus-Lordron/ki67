@@ -4,6 +4,7 @@
 -- SQL Editor > New query > cole este arquivo > Run.
 -- =============================================================================
 
+drop view if exists public.v_project_analyses;
 drop function if exists public.validation_queue(boolean);
 
 -- Fila: imagens com as N análises finalizadas que o usuário NÃO anotou.
