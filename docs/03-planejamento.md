@@ -1,6 +1,6 @@
 # 03 · Planejamento
 
-> **Documento vivo.** Versão 0.3, de 07/10/2026. Cronograma, organização do repositório e regras de trabalho do grupo. Quando uma data ou uma regra mudar, este arquivo muda no mesmo pull request.
+> **Documento vivo.** Versão 0.4, de 19/10/2026. Cronograma, organização do repositório e regras de trabalho do grupo. Quando uma data ou uma regra mudar, este arquivo muda no mesmo pull request.
 
 **Neste documento:** [1. Marcos](#1-marcos-e-entregas) · [2. Cronograma](#2-cronograma) · [3. Backlog por sprint](#3-backlog-do-mvp-por-sprint) · [4. Branches](#4-estratégia-de-branches) · [5. Commits](#5-convenção-de-commits) · [6. Definition of Done](#6-definition-of-done) · [7. Riscos](#7-riscos) · [8. Licença](#8-licença)
 
@@ -11,7 +11,7 @@
 | Marco | Data prevista | O que é entregue | Tag |
 | --- | --- | --- | --- |
 | **Etapa 1 · Documentação** | 07/10/2026 | README, LICENSE, `.env.example` e os três documentos de `docs/`, já com o retorno do professor | `v0.1.0` |
-| Sprint 0 · Fundação | 14/10/2026 | Monorepo que roda do zero nas três plataformas, Supabase configurado, bucket no R2 criado e desempenho do canvas medido | — |
+| Sprint 0 · Fundação | 14/10/2026 | App que roda do zero nas três plataformas, Supabase configurado, bucket no R2 criado e desempenho do canvas medido | — |
 | Sprint 1 · Acesso | 24/10/2026 | Login com 2FA, recuperação de senha, usuários, papéis, projetos e gestores | `v0.2.0` |
 | Sprint 2 · Imagens | 05/11/2026 | Lotes com N avaliadores, upload com hash, atribuição, abas e painel do gestor | `v0.3.0` |
 | Sprint 3 · Anotação | 19/11/2026 | Pontos, caixas e polígonos, com autosave, versões e histórico | `v0.4.0` |
@@ -19,6 +19,14 @@
 | **Laboratório de Avaliação do App** | 04/12/2026 *(a confirmar)* | MVP avaliado pelos outros grupos | `v1.0.0` |
 
 As datas depois da Etapa 1 são estimativas. Quando o professor publicar a data do Laboratório de Avaliação, só o marco final muda: as tarefas do cronograma dependem umas das outras (`after`) e se reorganizam sozinhas.
+
+**Situação em 19/10/2026.** O código das Sprints 0 a 4 e das duas frentes paralelas já existe na branch `Matheus`, migrado do protótipo do AI Studio: banco completo em `supabase/schema.sql`, Edge Functions e todas as telas, com modo demonstração. O que ainda falta para fechar esses marcos:
+
+- rodar o app contra um projeto Supabase e um bucket R2 reais, seguindo [04 · Guia de configuração](04-guia-de-configuracao.md);
+- levar para o CI os testes do banco, que hoje rodam só localmente;
+- medir o canvas com 2.000 marcações num celular intermediário (RNF-03);
+- testar num Android e num iPhone de verdade (até agora, só a web e a largura de celular no navegador);
+- revisão por outro integrante e pull request para a `main`.
 
 ## 2. Cronograma
 
@@ -36,8 +44,8 @@ gantt
     Entrega da documentação                   :milestone, m1, after doc, 0d
 
     section Sprint 0 · Fundação
-    Monorepo, Supabase, R2, CI e app vazio    :s0, after doc, 5d
-    Prova de conceito do canvas Skia          :crit, poc, after doc, 7d
+    App, Supabase, R2, CI e telas vazias      :s0, after doc, 5d
+    Prova de conceito do canvas               :crit, poc, after doc, 7d
 
     section Sequência principal
     Sprint 1 · Acesso, usuários e projetos    :s1, after s0, 12d
@@ -55,7 +63,7 @@ gantt
     Laboratório de Avaliação do App           :milestone, lab, after tst, 0d
 ```
 
-As barras vermelhas formam o caminho crítico: a anotação (Sprint 3) só começa quando a prova de conceito do canvas confirmar que o Skia aguenta 2.000 marcações a 30 fps num celular intermediário (RNF-03). Se não aguentar, a [decisão D2](02-arquitetura.md#12-decisões-de-arquitetura) é revista antes de escrever a tela de anotação. O algoritmo de pré-marcação é desenvolvido sobre imagens de exemplo desde a Sprint 0 e só é ligado ao canvas depois da Sprint 3.
+As barras vermelhas formam o caminho crítico: a anotação (Sprint 3) depende da prova de conceito que confirma que o canvas aguenta 2.000 marcações a 30 fps num celular intermediário (RNF-03). O canvas foi feito com `react-native-svg`; se a medição mostrar lentidão, a [decisão D2](02-arquitetura.md#12-decisões-de-arquitetura) é revista e o desenho passa para o Skia. O algoritmo de pré-marcação é desenvolvido sobre imagens de exemplo desde a Sprint 0 e só é ligado ao canvas depois da Sprint 3.
 
 A fase 2 ([escopo](01-visao-e-requisitos.md#4-escopo-por-fase)) não tem data: entra depois do Laboratório de Avaliação, se o projeto continuar.
 
@@ -63,11 +71,11 @@ A fase 2 ([escopo](01-visao-e-requisitos.md#4-escopo-por-fase)) não tem data: e
 
 | Sprint | Objetivo | Requisitos | Pronto quando |
 | --- | --- | --- | --- |
-| 0 · Fundação | Um esqueleto que roda do zero nas três plataformas | RNF-01, RNF-03 (prova de conceito), RNF-13 | `npm run dev:app` abre na web, no Android e no iOS; a API responde em `/api/v1/saude` conectada ao Supabase local; o projeto Supabase (região São Paulo, Data API desativada) e o bucket privado no R2 existem; o CI está verde; o canvas com 2.000 marcações foi medido |
+| 0 · Fundação | Um esqueleto que roda do zero nas três plataformas | RNF-01, RNF-03 (prova de conceito), RNF-13 | `npm run dev:app` abre na web, no Android e no iOS; a tela `/diagnostico` confirma a conexão com o Supabase; o projeto Supabase (região São Paulo, com o `schema.sql` aplicado) e o bucket privado no R2 existem; o CI está verde; o canvas com 2.000 marcações foi medido |
 | 1 · Acesso, usuários e projetos | Entrar com segurança e organizar quem faz o quê | RF-01 a RF-07, RF-09 (projetos e gestor); RF-37 para os eventos de login | Login, 2FA e recuperação de senha passam nos critérios; o admin cria usuários, papéis e projetos e designa o gestor |
 | 2 · Imagens e atribuição | O gestor distribui o trabalho | RF-08, RF-10, RF-11, RF-22, RF-24, RF-25, RF-29 | Lote com N avaliadores, upload em lote com hash, atribuição respeitando N e RN-07, abas e painel com dados reais |
 | 3 · Anotação | O núcleo do produto | RF-12 a RF-16, RF-20, RF-21, RF-33, RF-34 | Anotar com pontos, caixas e polígonos, salvar, finalizar e restaurar versões na web e no celular |
-| 4 · Cegamento, log, índice e saída | Provar o cegamento, fechar a auditoria e exportar | RF-19, RF-26 a RF-28 (bateria e2e), RF-37 a RF-40 | Índice na tela, bateria de cegamento no CI, log consultável e exportação que abre no Labelme |
+| 4 · Cegamento, log, índice e saída | Provar o cegamento, fechar a auditoria e exportar | RF-19, RF-26 a RF-28 (bateria de testes do banco), RF-37 a RF-40 | Índice na tela, bateria de cegamento no CI, log consultável e exportação que abre no Labelme |
 | Frente paralela · Pré-anotação | Sugestões automáticas para o avaliador revisar | RF-17, RF-18 | A imagem abre pré-anotada, o botão pré-marca os azul-claros e a origem de cada marcação fica registrada |
 | Frente paralela · Comparação | Fechar o ciclo dos N avaliadores | RF-30 a RF-32 | O validador compara as N análises anônimas, vê as métricas de concordância e registra o resultado |
 | Entrega | O app roda fora da máquina do grupo | Todos do MVP | Outro grupo roda o app só com o README; capturas reais no README; tag `v1.0.0` |
@@ -157,14 +165,14 @@ Seguimos [Conventional Commits](https://www.conventionalcommits.org/pt-br/v1.0.0
 | `feat` | Nova funcionalidade | `feat(anotacao): ferramenta de polígono (RF-14)` |
 | `fix` | Correção de bug | `fix(auth): código 2FA expirado era aceito` |
 | `docs` | Só documentação | `docs: critério de aceitação do RF-07` |
-| `refactor` | Muda o código sem mudar o comportamento | `refactor(api): extrai o serviço de versionamento` |
+| `refactor` | Muda o código sem mudar o comportamento | `refactor(banco): extrai a função de versionamento` |
 | `test` | Cria ou corrige testes | `test(cegamento): avaliador não acessa análise alheia` |
-| `chore` | Build, dependências e configuração | `chore: atualiza dependências do Expo SDK 57` |
+| `chore` | Build, dependências e configuração | `chore: atualiza dependências do Expo SDK 58` |
 | `ci` | Pipeline de integração contínua | `ci: roda lint e testes no pull request` |
 
-- O **escopo** é a área afetada: `auth`, `usuarios`, `projetos`, `imagens`, `preanotacao`, `anotacao`, `cegamento`, `validacao`, `auditoria`, `exportacao`, `app`, `api`, `shared`.
+- O **escopo** é a área afetada: `auth`, `usuarios`, `projetos`, `imagens`, `preanotacao`, `anotacao`, `cegamento`, `validacao`, `auditoria`, `exportacao`, `app`, `banco` (o `schema.sql`), `funcoes` (as Edge Functions).
 - Cite o requisito entre parênteses quando o commit o implementa ou altera.
-- Mudança que quebra compatibilidade leva `!` depois do tipo: `feat(api)!: rota de versões passa a exigir versão base`.
+- Mudança que quebra compatibilidade leva `!` depois do tipo: `feat(banco)!: save_analysis_version passa a exigir versão base`.
 - Mudança de comportamento leva o documento junto, no mesmo commit ou no mesmo PR.
 
 ## 6. Definition of Done
@@ -182,13 +190,13 @@ Uma tarefa só fecha quando **todos** os itens batem. Código alterado com docum
 
 | Risco | Impacto | Como reduzimos |
 | --- | --- | --- |
-| MVP maior depois do retorno do professor (pré-anotação, caixas e polígonos, índice e comparação) | Alto | Duas frentes em paralelo no cronograma; pré-anotação simples, por limiar de cor; índice e concordância escritos uma vez no pacote `shared` |
-| Canvas lento com milhares de marcações na web ou em celulares intermediários | Alto | Prova de conceito na Sprint 0, antes de escrever a tela de anotação; Skia com desenho em lote e só da área visível |
+| MVP maior depois do retorno do professor (pré-anotação, caixas e polígonos, índice e comparação) | Alto | Duas frentes em paralelo no cronograma; pré-anotação simples, por limiar de cor; índice e concordância escritos uma vez em `src/utils/ki67.ts` |
+| Canvas lento com milhares de marcações na web ou em celulares intermediários | Alto | Medição com 2.000 marcações num celular intermediário; se o canvas SVG não aguentar, troca para o Skia com desenho em lote e só da área visível |
 | Branches pessoais longas divergirem da `main` e gerarem conflitos grandes | Médio | Atualizar a branch com a `main` antes de cada tarefa e de cada PR; pull requests pequenos e frequentes |
 | Perguntas em aberto (Q1 a Q10) mudarem o escopo | Médio | Premissas registradas em [01 · Visão e requisitos](01-visao-e-requisitos.md#11-perguntas-em-aberto) e escolhidas para serem baratas de mudar; revisão com o cliente na Sprint 1 |
 | As imagens reais serem lâminas inteiras (WSI) | Alto | MVP limitado a campos capturados; WSI com tiles só depois do MVP |
 | Dados sensíveis de pacientes (LGPD e CEP), inclusive a região do bucket no R2 | Alto | Só imagens anonimizadas; nenhuma imagem real no repositório; desenvolvimento com imagens sintéticas ou de bases públicas; região do R2 conferida antes de usar imagens reais |
-| Limites dos planos gratuitos do Supabase e do R2 (projeto pausado depois de dias sem uso, cotas e backup) | Médio | Desenvolvimento no Supabase local e no disco; `pg_dump` agendado no CI; revisar os planos antes de usar imagens reais do estudo |
+| Limites dos planos gratuitos do Supabase e do R2 (projeto pausado depois de dias sem uso, cotas e backup) | Médio | Desenvolvimento no modo demonstração e num projeto Supabase de teste; `pg_dump` agendado no CI; revisar os planos antes de usar imagens reais do estudo |
 | Integrante indisponível | Médio | Pull requests pequenos, revisão cruzada e documentação viva, para ninguém ser o único que sabe uma parte |
 
 ## 8. Licença
@@ -202,3 +210,4 @@ Uma tarefa só fecha quando **todos** os itens batem. Código alterado com docum
 | 0.1 | 07/10/2026 | Cronograma, backlog por sprint, branches, commits, Definition of Done, riscos e licença. |
 | 0.2 | 07/10/2026 | Sprint 0 passa a configurar o Supabase; novo risco sobre o plano gratuito. |
 | 0.3 | 07/10/2026 | Retorno do professor: branch por integrante com pull request direto na `main` (sem `develop`), MVP maior com frentes em paralelo no cronograma e riscos revistos. |
+| 0.4 | 19/10/2026 | Situação do código em 19/10, prova de conceito do canvas sem amarrar ao Skia, Sprint 0 com a tela de diagnóstico, escopos de commit `banco` e `funcoes` no lugar de `api` e `shared`, e riscos alinhados à arquitetura sem API própria. |

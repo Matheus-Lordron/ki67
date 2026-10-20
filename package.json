@@ -1,0 +1,15 @@
+{
+  "name": "ki67",
+  "private": true,
+  "description": "Segmenta Studio Ki-67 IHC: anotação cega e versionada de imagens Ki-67 (web, Android e iOS).",
+  "license": "MIT",
+  "scripts": {
+    "postinstall": "npm --prefix apps/mobile install",
+    "dev:app": "npm --prefix apps/mobile start",
+    "dev:web": "npm --prefix apps/mobile run web",
+    "dev:android": "npm --prefix apps/mobile run android",
+    "test": "npm --prefix apps/mobile test",
+    "typecheck": "npm --prefix apps/mobile run typecheck",
+    "lint": "npm --prefix apps/mobile run lint"
+  }
+}

@@ -1,0 +1,20 @@
+# Configuração do Supabase CLI (npx supabase ...).
+# As funções conferem o usuário no próprio código (requireUser), então a
+# verificação automática de JWT do gateway fica desligada: assim elas funcionam
+# com as chaves antigas (anon/service_role) e com as novas (publishable/secret).
+project_id = "ki67"
+
+[functions.auth-login]
+verify_jwt = false
+
+[functions.auth-resend-2fa]
+verify_jwt = false
+
+[functions.admin-create-user]
+verify_jwt = false
+
+[functions.r2-upload-url]
+verify_jwt = false
+
+[functions.r2-download-url]
+verify_jwt = false

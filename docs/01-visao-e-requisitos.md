@@ -1,6 +1,6 @@
 # 01 · Visão e requisitos
 
-> **Documento vivo.** Versão 0.3, de 07/10/2026. Nasceu do levantamento de requisitos de 23/09/2026 e das anotações de reunião do grupo, e incorpora o retorno do professor sobre a primeira versão. Toda mudança de comportamento do app atualiza este arquivo no mesmo pull request (veja a [Definition of Done](03-planejamento.md#6-definition-of-done)).
+> **Documento vivo.** Versão 0.4, de 19/10/2026. Nasceu do levantamento de requisitos de 23/09/2026 e das anotações de reunião do grupo, e incorpora o retorno do professor sobre a primeira versão. Toda mudança de comportamento do app atualiza este arquivo no mesmo pull request (veja a [Definition of Done](03-planejamento.md#6-definition-of-done)).
 
 **Neste documento:** [1. Problema e público](#1-problema-e-público) · [2. Objetivos](#2-objetivos) · [3. Papéis](#3-papéis) · [4. Escopo por fase](#4-escopo-por-fase) · [5. Requisitos funcionais](#5-requisitos-funcionais) · [6. Cenários críticos](#6-cenários-críticos) · [7. Requisitos não funcionais](#7-requisitos-não-funcionais) · [8. Privacidade e LGPD](#8-privacidade-e-lgpd) · [9. Regras de negócio](#9-regras-de-negócio) · [10. Fora do escopo](#10-fora-do-escopo) · [11. Perguntas em aberto](#11-perguntas-em-aberto) · [12. Glossário](#12-glossário)
 
@@ -23,7 +23,7 @@ Ferramentas genéricas como o [Labelme](https://github.com/wkentaro/labelme) res
 
 ## 2. Objetivos
 
-1. **Cegamento de verdade.** Nenhum avaliador acessa o trabalho de outro, nem pela interface nem forjando requisições à API.
+1. **Cegamento de verdade.** Nenhum avaliador acessa o trabalho de outro, nem pela interface nem forjando requisições ao servidor.
 2. **Nada se perde.** Todo salvamento gera uma versão, nenhuma anotação sobrescreve outra e toda ação entra no log.
 3. **Uma base, três plataformas.** As mesmas funções de anotação na web, no Android e no iOS.
 4. **Dados prontos para pesquisa.** Exportação em formatos que outras ferramentas já leem (Labelme e CSV).
@@ -110,8 +110,8 @@ O núcleo do sistema é a **anotação cega e versionada**: cada par (imagem, av
 | ID | Requisito | Fase | Critério de aceitação |
 | --- | --- | --- | --- |
 | RF-26 | Anotações de um usuário nunca sobrescrevem as de outro | MVP | Cada par (imagem, avaliador) tem uma análise própria, garantida por restrição única no banco. Um teste automatizado tenta salvar na análise de outro usuário, recebe 404 e nada muda. |
-| RF-27 | Avaliador não vê anotações nem observações de outros | MVP | Nenhuma tela e nenhuma resposta da API destinada ao avaliador contém marcações, observações, contagens ou nomes de outros avaliadores da mesma imagem. |
-| RF-28 | Bloqueio garantido no backend (API), não só escondido na tela | MVP | Uma requisição forjada para a análise de outro usuário (por exemplo, trocando o id na URL com `curl`) retorna 404 e gera `ACESSO_NEGADO` no log. A bateria de testes de acesso roda no CI a cada pull request. |
+| RF-27 | Avaliador não vê anotações nem observações de outros | MVP | Nenhuma tela e nenhuma resposta do servidor destinada ao avaliador contém marcações, observações, contagens ou nomes de outros avaliadores da mesma imagem. |
+| RF-28 | Bloqueio garantido no backend (banco), não só escondido na tela | MVP | Uma requisição forjada para a análise de outro usuário (por exemplo, chamar a RPC `open_analysis` com o id dela usando `curl` e o próprio token) é recusada como inexistente e gera `ACESSO_NEGADO` no log; uma consulta direta à tabela não devolve nenhuma linha (RLS). A bateria de testes de acesso roda no CI a cada pull request. |
 
 ### 5.6 Comparação e validação
 
@@ -136,7 +136,7 @@ O núcleo do sistema é a **anotação cega e versionada**: cada par (imagem, av
 | ID | Requisito | Fase | Critério de aceitação |
 | --- | --- | --- | --- |
 | RF-37 | Log de todas as ações: login, falhas de login, anotações, finalizações, uploads, atribuições, mudanças de usuário | MVP | Cada uma dessas ações, mais acesso negado, validação e exportação, gera um registro com usuário, ação, data/hora, IP e dispositivo. |
-| RF-38 | Log somente-inclusão: ninguém edita nem apaga, nem o admin | MVP | Um `UPDATE` ou `DELETE` na tabela de log falha no próprio banco, inclusive com o usuário de banco da API. A verificação do hash encadeado não aponta nenhuma quebra. |
+| RF-38 | Log somente-inclusão: ninguém edita nem apaga, nem o admin | MVP | Um `UPDATE` ou `DELETE` na tabela de log falha no próprio banco, inclusive com a chave `service_role` e com o usuário `postgres`. A verificação do hash encadeado não aponta nenhuma quebra. |
 | RF-39 | Consulta de logs com filtros por usuário, imagem e período | MVP | O admin consulta o log de todo o sistema e o gestor, só o do próprio projeto, combinando os três filtros, com resultado paginado. Avaliador e validador recebem 403 na rota. |
 
 ### 5.9 Exportação
@@ -156,14 +156,14 @@ Não estavam numerados no levantamento, mas decorrem dele.
 
 ## 6. Cenários críticos
 
-Os requisitos que sustentam a confiança nos dados ganham cenários completos, no formato *dado / quando / então*. Cada linha vira um teste ponta a ponta (e2e) da API, que roda no CI. Nos exemplos, A1 e A2 são dois avaliadores da mesma imagem.
+Os requisitos que sustentam a confiança nos dados ganham cenários completos, no formato *dado / quando / então*. Cada linha vira um teste do banco (RLS, RPCs e triggers), que roda no CI. Nos exemplos, A1 e A2 são dois avaliadores da mesma imagem.
 
 **Cegamento entre avaliadores (RF-26, RF-27, RF-28)**
 
 | Cenário | Dado | Quando | Então |
 | --- | --- | --- | --- |
-| A2 não enxerga o trabalho de A1 | A imagem IMG-0042 foi atribuída a A1 e A2, e A1 salvou 30 marcações e uma observação | A2 abre a IMG-0042 | A2 vê só as próprias marcações, e nenhuma resposta da API para A2 contém marcações, observação ou nome de A1 |
-| Requisição forjada é barrada | O mesmo cenário acima | A2 envia `GET /analises/{id da análise de A1}` com o próprio token | A API responde 404, sem revelar que a análise existe, e o log registra `ACESSO_NEGADO` para A2 |
+| A2 não enxerga o trabalho de A1 | A imagem IMG-0042 foi atribuída a A1 e A2, e A1 salvou 30 marcações e uma observação | A2 abre a IMG-0042 | A2 vê só as próprias marcações, e nenhuma resposta do servidor para A2 contém marcações, observação ou nome de A1 |
+| Requisição forjada é barrada | O mesmo cenário acima | A2 chama `open_analysis` com o id da análise de A1, usando o próprio token | O banco responde que a análise não existe, sem revelar que ela existe, e o log registra `ACESSO_NEGADO` para A2 |
 | Gestor não avalia no próprio projeto | G é gestor do projeto da IMG-0042 | Alguém tenta atribuir a IMG-0042 a G | A atribuição é recusada (RN-07) |
 
 **Versionamento sem perda (RF-33, RF-34)**
@@ -182,7 +182,7 @@ Os requisitos que sustentam a confiança nos dados ganham cenários completos, n
 
 | Cenário | Dado | Quando | Então |
 | --- | --- | --- | --- |
-| Nem o administrador apaga o log | Existe o registro de log de id 100 | O admin, ou a própria conexão da API, tenta alterar ou apagar esse registro | O banco recusa a operação e o registro 100 continua igual |
+| Nem o administrador apaga o log | Existe o registro de log de id 100 | O admin, ou uma conexão com a chave `service_role`, tenta alterar ou apagar esse registro | O banco recusa a operação e o registro 100 continua igual |
 
 ## 7. Requisitos não funcionais
 
@@ -190,19 +190,19 @@ O app é cross-platform: uma base de código para web, Android e iOS, com o mesm
 
 | ID | Categoria | Requisito | Critério de aceitação |
 | --- | --- | --- | --- |
-| RNF-01 | Plataformas e versões mínimas | Web, Android e iOS a partir de uma base de código (Expo SDK 57). Android 7.0+ (API 24), iOS 16.4+ e navegadores Chrome, Edge, Firefox e Safari nas duas últimas versões. Retrato e paisagem; a anotação é pensada primeiro para tablet e desktop ([Q6](#11-perguntas-em-aberto)). | O mesmo commit gera o app web e roda no Expo Go em Android e iOS; o CI faz o build web a cada pull request. |
+| RNF-01 | Plataformas e versões mínimas | Web, Android e iOS a partir de uma base de código (Expo SDK 58). Android 7.0+ (API 24), iOS 16.4+ e navegadores Chrome, Edge, Firefox e Safari nas duas últimas versões. Retrato e paisagem; a anotação é pensada primeiro para tablet e desktop ([Q6](#11-perguntas-em-aberto)). | O mesmo commit gera o app web e roda no Expo Go em Android e iOS; o CI faz o build web a cada pull request. |
 | RNF-02 | Paridade | Mesmas funções de anotação em todas as plataformas; muda só a interação (mouse e teclado × toque). | Os critérios de RF-12 a RF-15 e RF-21 passam na web e em pelo menos um celular a cada entrega. |
 | RNF-03 | Desempenho | Centenas a milhares de marcações por imagem sem travar, inclusive em celulares intermediários. | Com 2.000 marcações, pan e zoom ficam a 30 fps ou mais num Android intermediário (4 GB de RAM) e a 50 fps ou mais no desktop; marcar responde em menos de 100 ms; a pré-anotação de uma imagem de 4.096 px fica pronta em até 10 s depois do upload. |
 | RNF-04 | Imagens grandes | No MVP, campos capturados (JPG, PNG, TIFF) de até 50 MB. Imagens com mais de 4.096 px no maior lado são exibidas a partir de uma cópia reduzida gerada no upload, sem mudar o original nem o sistema de coordenadas. Lâminas inteiras (WSI) com tiles e zoom progressivo só depois do MVP, se a [Q5](#11-perguntas-em-aberto) confirmar. | Uma imagem de 8.000 × 6.000 px abre no celular em até 3 s numa rede Wi-Fi e as coordenadas exportadas correspondem ao arquivo original. |
 | RNF-05 | Conectividade (funcionamento offline) | MVP: login, listas e abertura de imagens exigem rede; a análise já aberta continua editável sem conexão e o rascunho fica no aparelho até a rede voltar. *Sugestão* para a fase 2: fila completa de sincronização. | Derrubar a rede durante a anotação, fazer 20 marcações e reconectar: as 20 chegam ao servidor, sem duplicar nem perder nenhuma. |
-| RNF-06 | Segurança | HTTPS; senhas com hash argon2id; imagens em bucket privado no Cloudflare R2, entregues por URL assinada de 5 min; nada sensível em cache aberto no aparelho. | URL assinada expirada é recusada; respostas de imagem trazem `Cache-Control: no-store`; o token fica no SecureStore (Android/iOS) ou em cookie `httpOnly` (web), nunca em AsyncStorage ou localStorage; login e código 2FA aceitam no máximo 5 tentativas a cada 15 min. |
+| RNF-06 | Segurança | HTTPS; senhas com hash (bcrypt, pelo Supabase Auth); imagens em bucket privado no Cloudflare R2, entregues por URL assinada de 5 min; nada sensível em cache aberto no aparelho. | URL assinada expirada é recusada; respostas de imagem trazem `Cache-Control: no-store`; a sessão fica cifrada com chave no SecureStore (Android/iOS) ou no `sessionStorage` da aba (web), nunca em texto puro no AsyncStorage nem no localStorage; login e código 2FA aceitam no máximo 5 tentativas a cada 15 min. |
 | RNF-07 | LGPD | Imagens anonimizadas (sem nome do paciente em metadados ou no rótulo da lâmina), base legal definida e aprovação no CEP, por ser pesquisa. Detalhes na [seção 8](#8-privacidade-e-lgpd). | O upload alerta sobre metadados de texto (EXIF/TIFF) antes de aceitar o arquivo; não existe dado de paciente no banco, no repositório nem nos seeds. |
 | RNF-08 | Rastreabilidade | Toda anotação vinculada a usuário, versão, data/hora e dispositivo. | Autor, data/hora (UTC), número sequencial e dispositivo (plataforma e versão do app) são campos obrigatórios de toda versão. |
 | RNF-09 | Backup | Backup periódico de banco, imagens e logs. | Backup diário do banco no Supabase, com retenção de 30 dias: o backup automático do Supabase, que depende do plano contratado, ou um `pg_dump` agendado no CI enquanto o projeto estiver no plano gratuito. O bucket de imagens no R2 tem cópia diária para um segundo bucket, e uma restauração completa é testada antes de cada entrega. |
 | RNF-10 | Usabilidade | Atalhos de teclado na web; pinça e toque longo no mobile; alvos de toque grandes o bastante para marcar núcleos. | Atalhos: `1` e `2` trocam a label, `P` ponto, `C` caixa, `G` polígono, `Z` desfaz, `Shift+Z` refaz, espaço + arrastar move. No celular, o toque longo abre o menu da marcação (trocar label, excluir) e uma lupa mostra a área sob o dedo durante a marcação. |
 | RNF-11 | Permissões do dispositivo | O app não pede câmera, localização, contatos nem notificações. O upload usa o seletor de arquivos do sistema, que dispensa permissão. | Nenhuma janela de permissão aparece no primeiro uso. Se a fase 2 trouxer notificações (por exemplo, "nova imagem atribuída"), o pedido acontece só na hora do uso e explica o motivo. |
 | RNF-12 | Acessibilidade | Alvos de toque de pelo menos 44 × 44 pt (iOS) e 48 × 48 dp (Android); contraste mínimo de 4,5:1 (WCAG 2.1 AA); todo botão de ícone com `accessibilityLabel`; labels diferenciadas por símbolo além da cor; textos acompanham o tamanho de fonte do sistema. | Login e listas são percorridos de ponta a ponta com VoiceOver e TalkBack; a auditoria de acessibilidade do Lighthouse fica em 90 ou mais na web. O canvas é visual por natureza: o leitor de tela anuncia a label ativa e as contagens, não cada núcleo. |
-| RNF-13 | Qualidade e manutenção | TypeScript em modo estrito no app, na API e no pacote compartilhado; lint, checagem de tipos e testes no CI. | Pull request com CI vermelho não pode ser mesclado, e as regras de acesso (RF-26 a RF-28) têm testes e2e. |
+| RNF-13 | Qualidade e manutenção | TypeScript em modo estrito no app e nas Edge Functions; lint, checagem de tipos e testes no CI. | Pull request com CI vermelho não pode ser mesclado, e as regras de acesso (RF-26 a RF-28) têm testes no banco. |
 
 ## 8. Privacidade e LGPD
 
@@ -211,11 +211,11 @@ Que dado pessoal o app guarda, onde guarda e por quanto tempo:
 | Dado | De quem | Onde fica | Por quanto tempo | Observação |
 | --- | --- | --- | --- | --- |
 | Nome, e-mail e papéis | Usuários | Banco no Supabase (região São Paulo) | Enquanto durar o estudo; a conta é desativada, nunca excluída (RF-06) | Necessário para autoria e auditoria |
-| Hash da senha (argon2id) | Usuários | Banco no Supabase | Enquanto a conta existir | A senha nunca é guardada em texto puro |
+| Hash da senha (bcrypt) | Usuários | Supabase Auth | Enquanto a conta existir | A senha nunca é guardada em texto puro |
 | Registros de log: ação, data/hora, IP e dispositivo | Usuários | Banco no Supabase, tabela somente-inclusão | Pelo prazo do estudo definido no protocolo; não são apagados (RF-38) | Rastreabilidade (RNF-08) |
-| Códigos de 2FA e de recuperação de senha | Usuários | Banco no Supabase, apenas o hash | 10 min (2FA) e 30 min (recuperação); depois disso são inválidos | |
+| Código de 2FA e link de recuperação de senha | Usuários | Banco no Supabase (do código, apenas o hash) e Supabase Auth (link) | 10 min (2FA); o link de recuperação vale pelo prazo configurado no Supabase Auth (1 h por padrão) | |
 | Imagens das lâminas | Pacientes, de forma indireta | Bucket privado no Cloudflare R2 | Conforme o protocolo aprovado no CEP | Chegam anonimizadas: sem nome, prontuário ou rótulo da lâmina |
-| Sessão | Usuário | SecureStore (Android/iOS) ou cookie `httpOnly` (web) | Até o logout ou a expiração | O logout apaga |
+| Sessão | Usuário | Cifrada, com a chave no SecureStore (Android/iOS), ou no `sessionStorage` da aba (web) | Até o logout, a expiração ou, na web, o fechamento da aba | O logout apaga |
 | Rascunho da análise aberta | Usuário | Armazenamento do app no aparelho | Até o servidor confirmar o salvamento, ou até o logout | Só coordenadas, labels e observação; nenhuma imagem é gravada no aparelho |
 
 **Base legal.** Imagens corretamente anonimizadas deixam de ser dado pessoal (art. 12 da LGPD). Para o estudo em si e para os dados dos usuários, a base legal (por exemplo, realização de estudos por órgão de pesquisa, art. 7º, IV e art. 11, II, "c") será confirmada com a instituição e com o Comitê de Ética em Pesquisa antes do uso com imagens reais. Banco e imagens ficam em serviços de terceiros. O projeto Supabase é criado na região de São Paulo, para os dados permanecerem no Brasil. No Cloudflare R2, a região disponível para o bucket precisa ser conferida, porque um armazenamento fora do país conta como transferência internacional. Os termos de tratamento de dados dos dois provedores entram nessa avaliação. Até lá, o desenvolvimento usa apenas imagens sintéticas ou de bases públicas com licença compatível.
@@ -263,8 +263,8 @@ Estas decisões mudam escopo ou arquitetura. Enquanto não forem fechadas com o 
 | Q6 | O avaliador vai anotar no celular ou só no tablet e no desktop? | Funciona no celular, mas a experiência é desenhada primeiro para tablet e desktop. | RNF-10, layout |
 | Q7 | Anota a imagem toda ou escolhe hotspots antes de contar? | Imagem toda: o campo capturado já é a região escolhida. | Modelo de dados, índice |
 | Q8 | Quantas imagens e usuários são esperados? | Dezenas de usuários, alguns milhares de imagens e até cerca de 2.000 marcações por imagem. | RNF-03, custos |
-| Q9 | Nuvem ou servidor da instituição? | **Decidido:** banco no Supabase (região São Paulo) e imagens no Cloudflare R2. Ainda em aberto: onde roda a API (nuvem ou servidor da instituição). | Implantação, backup, LGPD |
-| Q10 | Flutter, React Native + web ou outra stack? | **Decidida:** React Native com Expo (web via React Native Web) e canvas Skia, revista depois da prova de conceito da Sprint 0. | Toda a [arquitetura](02-arquitetura.md) |
+| Q9 | Nuvem ou servidor da instituição? | **Decidido:** banco, login e Edge Functions no Supabase (região São Paulo) e imagens no Cloudflare R2. Não há API própria para hospedar ([D3](02-arquitetura.md#12-decisões-de-arquitetura)). Ainda em aberto: onde fica a versão web publicada. | Implantação, backup, LGPD |
+| Q10 | Flutter, React Native + web ou outra stack? | **Decidida:** React Native com Expo (web via React Native Web) e canvas com `react-native-svg`; o Skia fica como plano B se a medição de desempenho (RNF-03) pedir ([D2](02-arquitetura.md#12-decisões-de-arquitetura)). | Toda a [arquitetura](02-arquitetura.md) |
 
 ## 12. Glossário
 
@@ -297,3 +297,4 @@ Estas decisões mudam escopo ou arquitetura. Enquanto não forem fechadas com o 
 | 0.1 | 07/10/2026 | Estrutura inicial a partir do levantamento de requisitos de 23/09/2026. |
 | 0.2 | 07/10/2026 | Banco no Supabase: LGPD (onde ficam os dados), backup (RNF-09) e Q9 parcialmente decidida. |
 | 0.3 | 07/10/2026 | Retorno do professor: papel "avaliador" no lugar de "patologista", novo papel de gestor do projeto, N avaliadores por imagem, pré-anotação, caixas, polígonos, índice e comparação no MVP, COCO removido, imagens no Cloudflare R2 e cenários críticos em tabela. |
+| 0.4 | 19/10/2026 | Alinhado ao código: regras no banco do Supabase em vez de uma API própria (RF-28, RF-38 e cenários), senhas e sessão pelo Supabase Auth (RNF-06 e LGPD), Expo SDK 58, Q9 e Q10 atualizadas. |
