@@ -1,6 +1,6 @@
 # 05 · Plano de refatoração
 
-> **Documento vivo.** Versão 0.2, de 21/10/2026. Lista o que muda no código depois do MVP, em que ordem e com quais testes. As prioridades são **segurança e LGPD**; o meio é **desenvolvimento guiado por testes**; e o resultado esperado é um repositório com **front e back separados**. Cada tarefa tem um ID (R-01, R-02...) que aparece nos commits e no pull request que a entrega.
+> **Documento vivo.** Versão 0.3, de 21/10/2026. Lista o que muda no código depois do MVP, em que ordem e com quais testes. As prioridades são **segurança e LGPD**; o meio é **desenvolvimento guiado por testes**; e o resultado esperado é um repositório com **front e back separados**. Cada tarefa tem um ID (R-01, R-02...) que aparece nos commits e no pull request que a entrega.
 
 **Neste documento:** [1. Por que refatorar](#1-por-que-refatorar) · [2. Regras de trabalho](#2-regras-de-trabalho) · [3. Diagnóstico](#3-diagnóstico) · [4. Estrutura alvo](#4-estrutura-alvo) · [5. Fases e tarefas](#5-fases-e-tarefas) · [6. O que depende de autorização](#6-o-que-depende-de-autorização) · [7. Riscos](#7-riscos)
 
@@ -127,6 +127,7 @@ flowchart LR
     F1 --> F3["Fase 3<br/>LGPD"]
     F2 & F3 --> F4["Fase 4<br/>Domínio"]
     F1 --> F5["Fase 5<br/>Projetos<br/>configuráveis"]
+    F1 --> F6["Fase 6<br/>Salvamento<br/>e versões"]
 ```
 
 As Fases 2 e 3 podem andar em paralelo, com integrantes diferentes. Cada linha das tabelas abaixo é **um pull request**.
@@ -189,18 +190,24 @@ O Segmenta deixa de ser só para Ki-67: cada projeto define as próprias classes
 
 | ID | Tarefa | Teste que comprova (escrito antes) |
 | --- | --- | --- |
-| R-24 | **Classes por projeto.** Admin e gestor criam, renomeiam, mudam a cor e desativam classes (N classes, não só duas). Classe em uso não é apagada, só desativada. A anotação, as versões, a comparação e a exportação passam a usar as classes do projeto | pgTAP: só admin e gestor do projeto escrevem em `labels`; uma marcação com classe de outro projeto é recusada. Jest: o painel de contagem mostra uma linha por classe ativa do projeto |
-| R-25 | **Admin edita o projeto:** nome, descrição, situação (ativo ou encerrado) e gestor | pgTAP: só o admin edita; trocar o gestor por alguém que já anotou no projeto é recusado (RN-07); a mudança entra no log |
-| R-26 | **Equipe do projeto com papéis.** Tabela `project_members` (projeto, usuário, papel no projeto: gestor, avaliador ou validador). O admin define quem faz o quê em cada projeto; a atribuição e a fila de validação passam a respeitar essa equipe | pgTAP: só membros avaliadores recebem imagens do projeto; um validador de outro projeto não vê a comparação; a bateria de cegamento (R-05) continua verde |
-| R-27 | **Gestor gerencia a equipe:** adiciona e remove avaliadores e validadores do próprio projeto quando quiser. Remover desativa o vínculo, sem apagar o histórico | pgTAP: o gestor só altera a equipe do próprio projeto; depois de removido, o avaliador não abre mais imagens do projeto, e as análises finalizadas dele continuam na comparação e no log |
+| R-24 | **Classes por projeto.** Admin e gestor criam, renomeiam, mudam a cor e desativam classes (N classes, não só duas). Classe em uso não é apagada, só desativada. Renomear ou mudar a cor vale também para as marcações antigas, e a mudança aparece **destacada** no registro de atividades do projeto (nome e cor antes e depois). A anotação, as versões, a comparação e a exportação passam a usar as classes do projeto | pgTAP: só admin e gestor do projeto escrevem em `labels`; uma marcação com classe de outro projeto é recusada; renomear gera um evento `CLASSE_ALTERADA` com os valores antigos e novos. Jest: o painel de contagem mostra uma linha por classe ativa do projeto; o registro de atividades destaca esse evento |
+| R-25 | **Admin edita o projeto:** nome, descrição, situação (ativo ou encerrado) e gestores | pgTAP: só o admin edita; designar como gestor alguém que já anotou no projeto é recusado (RN-07); a mudança entra no log |
+| R-26 | **Gestores por projeto.** Os papéis continuam globais e fixos (Admin, Gestor, Avaliador, Validador), e o admin muda o papel de qualquer pessoa quando quiser. O que muda: o projeto deixa de ter um único `manager_id` e passa a ter uma lista de gestores, definida só pelo admin, que pode autorizar mais de um | pgTAP: só o admin inclui ou retira gestores de um projeto; só quem tem o papel Gestor pode ser incluído; cada gestor enxerga e administra só os projetos em que foi incluído; a bateria de cegamento (R-05) continua verde |
+| R-27 | **Gestor gerencia a equipe do projeto:** adiciona e remove avaliadores e validadores quando quiser (tabela `project_members`). A atribuição e a fila de validação passam a respeitar essa equipe. Remover **não apaga** as análises: elas continuam na comparação, marcadas como "avaliador removido do projeto", e no fechamento a gestão decide, com justificativa, se cada uma conta ou não para o resultado | pgTAP: só gestores do projeto alteram a equipe; depois de removido, o avaliador não abre mais imagens do projeto; as análises dele continuam visíveis para o gestor e o validador, com a marcação de removido; incluir ou excluir uma análise do resultado exige justificativa e entra no log |
 
-**Perguntas para fechar antes de começar:**
+**Decisões tomadas em 21/10/2026:** papéis globais e fixos, alterados só pelo admin; mais de um gestor por projeto, só com autorização do admin; análises de quem foi removido são mantidas, destacadas, e a gestão decide no fim se contam; mudar nome ou cor de uma classe vale para as marcações antigas e fica destacado no registro de atividades.
 
-1. Os papéis globais de hoje (Admin, Gestor, Avaliador, Validador) continuam, ou o papel passa a valer só dentro de cada projeto?
-2. Um projeto pode ter mais de um gestor?
-3. Ao remover um avaliador com análise em andamento, a análise é cancelada, fica congelada ou volta para ser reatribuída?
-4. Depois que as anotações começaram, mudar uma classe (nome ou cor) vale também para as marcações antigas, ou a classe fica travada?
-5. O índice (como o Ki-67) volta como opção do projeto, ligado a classes escolhidas pelo gestor?
+**Ainda em aberto:** o índice (como o Ki-67) volta como opção do projeto, calculado a partir de classes escolhidas pelo gestor?
+
+### Fase 6 · Salvamento e versões
+
+Hoje o salvamento automático grava uma **versão nova no servidor** a cada 5 segundos depois de uma alteração. Por isso o contador de versões sobe sozinho e o histórico enche de versões que o médico não pediu. O histórico já existe ("Versões salvas": lista as versões com data, contagens e observação, mostra os detalhes e restaura uma versão como versão nova), mas não mostra as marcações de uma versão antiga sobre a imagem nem a diferença entre duas versões.
+
+| ID | Tarefa | Teste que comprova (escrito antes) |
+| --- | --- | --- |
+| R-28 | **Rascunho automático e versão só no "Salvar".** O salvamento automático passa a guardar só um rascunho, que sobrevive a fechar e reabrir o app (no aparelho, como hoje, e no servidor para trocar de aparelho), sem criar versão. Uma versão nova, que aparece no histórico, só nasce quando o médico aperta **Salvar** (e ao finalizar). O indicador distingue "rascunho guardado" de "salvo como versão N". Muda o RF-21 e o RF-33 em [01 · Visão e requisitos](01-visao-e-requisitos.md) | Jest: alterar marcações e esperar o tempo do salvamento automático não muda o número da versão; reabrir a análise recupera o rascunho; apertar Salvar cria a versão N+1. pgTAP: gravar rascunho não cria linha em `analysis_versions` |
+| R-29 | **Ver uma versão anterior sobre a imagem** e comparar duas versões: marcações adicionadas, removidas e trocadas de classe (RF-35) | Jest: abrir a versão k mostra exatamente as marcações dela; a diferença entre k e k+1 lista as marcações certas, casadas pelo id |
+| R-30 | **Editar depois de finalizar.** O avaliador pode reabrir a própria análise finalizada. A versão finalizada original fica guardada como está; a edição gera versões novas e, ao finalizar de novo, a análise mostra que foi reaberta. O gestor vê a diferença entre a versão finalizada antes e a finalizada depois da edição (usando o R-29), e a reabertura entra no log. Muda a RN-04 e o RF-42 | pgTAP: reabrir não altera nem apaga a versão finalizada original; a reabertura gera evento no log; a fila de validação trata a análise reaberta como não finalizada até ela ser finalizada de novo. Jest: o gestor vê as duas versões finalizadas e a diferença entre elas |
 
 ## 6. O que depende de autorização
 
@@ -231,3 +238,4 @@ Também precisa de decisão fora do código: a proteção da branch `main` no Gi
 | --- | --- | --- |
 | 0.1 | 21/10/2026 | Diagnóstico de segurança, LGPD, testes e organização; estrutura alvo com `frontend/` e `backend/`; fases e tarefas R-01 a R-23 com o teste de cada uma. |
 | 0.2 | 21/10/2026 | Fase 5: classes configuráveis por projeto, edição de projeto pelo admin e equipe do projeto gerida pelo admin e pelo gestor (R-24 a R-27), com as perguntas em aberto. |
+| 0.3 | 21/10/2026 | Decisões da Fase 5 (papéis globais, vários gestores autorizados pelo admin, análises de removidos mantidas e destacadas, mudança de classe destacada no log) e Fase 6: rascunho automático, versão só no "Salvar", ver versões anteriores e editar depois de finalizar (R-28 a R-30). |
