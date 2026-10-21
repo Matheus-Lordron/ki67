@@ -2,6 +2,8 @@
 
 > **Documento vivo.** Versão 0.4, de 21/10/2026. Lista o que muda no código depois do MVP, em que ordem e com quais testes. As prioridades são **segurança e LGPD**; o meio é **desenvolvimento guiado por testes**; e o resultado esperado é um repositório com **front e back separados**. Cada tarefa tem um ID (R-01, R-02...) que aparece nos commits e no pull request que a entrega.
 
+A ordem de execução, as regras de negócio consolidadas e o calendário estão em [06 · Plano de execução](06-plano-de-execucao.md).
+
 **Neste documento:** [1. Por que refatorar](#1-por-que-refatorar) · [2. Regras de trabalho](#2-regras-de-trabalho) · [3. Diagnóstico](#3-diagnóstico) · [4. Estrutura alvo](#4-estrutura-alvo) · [5. Fases e tarefas](#5-fases-e-tarefas) · [6. O que depende de autorização](#6-o-que-depende-de-autorização) · [7. Riscos](#7-riscos)
 
 ---
@@ -151,7 +153,7 @@ Nenhuma mudança de comportamento. O objetivo é fixar o comportamento atual em 
 | --- | --- | --- | --- |
 | R-07 | Pull request **só de movimentação** (`git mv`, sem alterar conteúdo): `apps/mobile` → `frontend/`, `supabase/` → `backend/supabase/`. Ajusta scripts da raiz, CI e caminhos nos documentos. Combinado com o grupo para um momento sem outros PRs abertos | CI verde sem mudar nenhum teste | `refactor!: separa frontend/ e backend/ na raiz (R-07)` |
 | R-08 | Tipos do banco gerados com `supabase gen types` a partir das migrações; o CI compara com o arquivo versionado | Mudar uma coluna sem regenerar os tipos quebra o CI | `feat(banco): tipos do frontend gerados do banco (R-08)` |
-| R-09 | O backend passa a ser a fonte do índice Ki-67: o frontend usa o valor do banco e calcula só a prévia durante a anotação | Teste de contrato: os mesmos casos em Jest e em pgTAP dão o mesmo índice | `refactor(app): índice oficial vem do banco (R-09)` |
+| R-09 | **Revisada (ver [06](06-plano-de-execucao.md#onda-2--separação-front-e-back-01-a-0311)):** como o índice saiu das telas (RN-15), o fechamento da validação passa a aceitar só contagens; o banco deixa de exigir índice, ICC e divergência, e o app para de calculá-los | pgTAP: `submit_consensus` aceita o fechamento só com contagens. Jest: nenhuma tela chama as funções de índice | `refactor(banco)!: fechamento só com contagens (R-09)` |
 
 ### Fase 2 · Segurança
 
@@ -170,7 +172,7 @@ Cada tarefa começa por um teste que reproduz a falha.
 
 | ID | Problema | Tarefa | Teste que comprova (escrito antes) |
 | --- | --- | --- | --- |
-| R-16 | L4 | `docs/06-privacidade-lgpd.md`: registro das operações de tratamento, RIPD, base legal, prazos de retenção, operadores (Supabase, Cloudflare, Resend) e transferência internacional | Revisão do grupo; sem teste automatizado |
+| R-16 | L4 | `docs/07-privacidade-lgpd.md`: registro das operações de tratamento, RIPD, base legal, prazos de retenção, operadores (Supabase, Cloudflare, Resend) e transferência internacional | Revisão do grupo; sem teste automatizado |
 | R-17 | L1 | Log pseudonimizado: o log guarda só um identificador opaco do titular. Nome, e-mail, IP e dispositivo vão para uma tabela separada, que pode ser anonimizada. A cadeia de hash é calculada sobre o conteúdo pseudônimo | pgTAP: anonimizar um usuário apaga os dados pessoais dele e `verify_audit_chain()` continua íntegro |
 | R-18 | L1 | Falha de login registra o hash do e-mail com sal, não o e-mail em texto | pgTAP: depois de uma falha com e-mail inexistente, o e-mail não aparece em nenhuma tabela |
 | R-19 | L2 | Retenção automática com `pg_cron`: IP e dispositivo expiram no prazo definido em R-16; códigos 2FA vencidos são apagados | pgTAP: com o relógio adiantado, a rotina remove o que venceu e mantém o resto |
