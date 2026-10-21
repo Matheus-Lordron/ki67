@@ -8,34 +8,32 @@ module.exports = {
   darkMode: 'class',
   theme: {
     extend: {
-      // Paleta do protótipo do AI Studio. As telas migradas também podem usar os
-      // valores arbitrários originais, como bg-[#00236f].
+      // Interface neutra, de instrumento de laboratório: cinzas quentes e texto
+      // quase preto. A cor fica reservada para o dado (DAB marrom e hematoxilina
+      // azul) e para os estados (erro, alerta, sucesso).
       colors: {
-        primary: { DEFAULT: '#00236f', dark: '#1e3a8a', soft: '#dce9ff' },
-        surface: { DEFAULT: '#f8f9ff', alt: '#eff4ff' },
-        ink: { DEFAULT: '#0b1c30', muted: '#444651', subtle: '#757682' },
-        line: '#c5c5d3',
-        dab: { DEFAULT: '#8e4d2d', dashed: '#ffb595' }, // núcleo reagente (marrom)
-        hema: { DEFAULT: '#0284c7', dashed: '#38bdf8', soft: '#e0f2fe' }, // não reagente (azul)
-        danger: { DEFAULT: '#ba1a1a', soft: '#ffdad6', dark: '#93000a' },
-        warn: { DEFAULT: '#78350f', soft: '#fef3c7' },
+        primary: { DEFAULT: '#1f2124', dark: '#000000', soft: '#e8e7e3' },
+        surface: { DEFAULT: '#f5f5f2', alt: '#ecebe7' },
+        ink: { DEFAULT: '#1f2124', muted: '#4f5156', subtle: '#76787d' },
+        line: '#d9d8d2',
+        dab: { DEFAULT: '#8e4d2d', dashed: '#ffb595', soft: '#f6ece6' }, // núcleo reagente (marrom)
+        hema: { DEFAULT: '#2f6f9f', dashed: '#5aa3d6', soft: '#e7f0f6' }, // não reagente (azul)
+        danger: { DEFAULT: '#b42318', soft: '#fdecea', dark: '#7a1a12' },
+        warn: { DEFAULT: '#7a4b0c', soft: '#fbf1dc' },
       },
-      // Nomes do Tailwind 4 usados no protótipo (rounded-xs, shadow-xs, shadow-2xs).
-      borderRadius: { xs: '2px' },
-      boxShadow: {
-        '2xs': '0 1px rgb(0 0 0 / 0.05)',
-        xs: '0 1px 2px 0 rgb(0 0 0 / 0.05)',
-      },
+      borderRadius: { xs: '3px' },
+      // Sem sombra nos blocos: a separação vem da borda e do espaço.
+      boxShadow: { '2xs': 'none', xs: 'none' },
       // No Android e no iOS cada peso é uma família de fonte própria (veja src/theme/fonts.ts).
       fontFamily: {
-        sans: ['Inter_400Regular'],
-        'sans-medium': ['Inter_500Medium'],
-        'sans-semibold': ['Inter_600SemiBold'],
-        'sans-bold': ['Inter_700Bold'],
-        'sans-black': ['Inter_800ExtraBold'],
-        mono: ['JetBrainsMono_400Regular'],
-        'mono-medium': ['JetBrainsMono_500Medium'],
-        'mono-bold': ['JetBrainsMono_700Bold'],
+        sans: ['IBMPlexSans_400Regular'],
+        'sans-medium': ['IBMPlexSans_500Medium'],
+        'sans-semibold': ['IBMPlexSans_600SemiBold'],
+        'sans-bold': ['IBMPlexSans_600SemiBold'],
+        'sans-black': ['IBMPlexSans_700Bold'],
+        mono: ['IBMPlexMono_400Regular'],
+        'mono-medium': ['IBMPlexMono_500Medium'],
+        'mono-bold': ['IBMPlexMono_500Medium'],
       },
     },
   },

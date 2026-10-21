@@ -1,19 +1,21 @@
 import { Redirect, router, useLocalSearchParams } from 'expo-router';
-import { ArrowLeft, History, Lock, ShieldCheck } from 'lucide-react-native';
+import { ArrowLeft, History } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, Text, useWindowDimensions, View } from 'react-native';
 
 import { Button } from '@/components/ui/Button';
 import { KeyValue } from '@/components/ui/Card';
-import { StratBadge } from '@/features/anotacao/QuantPanel';
 import { isDemo } from '@/data/mode';
 import * as repo from '@/data/repo';
+import { ClassSwatch } from '@/features/anotacao/QuantPanel';
 import { SlideView } from '@/features/anotacao/SlideView';
 import { useImageUrl } from '@/features/anotacao/useImageUrl';
 import { VersionHistoryDialog } from '@/features/anotacao/VersionHistoryDialog';
 import { useAppStore } from '@/state/appStore';
 import { colors } from '@/theme/colors';
-import { calculateKi67Index, countMarks, formatKi67 } from '@/utils/ki67';
+import { countMarks } from '@/utils/ki67';
+
+const fmt = (iso?: string) => (iso ? new Date(iso).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : '—');
 
 // Análise finalizada em modo somente leitura (RF-24).
 export default function FinalizedReadOnlyView() {
@@ -43,77 +45,58 @@ export default function FinalizedReadOnlyView() {
   if (analysis.status !== 'finalizada') return <Redirect href={`/avaliador/anotacao/${image.id}`} />;
 
   const counts = countMarks(analysis.marks);
-  const ki67 = analysis.history[0]?.ki67Index ?? calculateKi67Index(counts.reagents, counts.nonReagents);
   const wide = width >= 1024;
 
   const info = (
-    <View className="gap-4">
-      <View>
-        <Text className="font-mono text-[10px] uppercase text-ink-subtle">Identificação da amostra</Text>
-        <Text className="font-mono-bold text-lg text-primary">{image.code}</Text>
-        <Text className="font-sans text-xs text-ink-muted">{image.organ}</Text>
+    <View className="gap-6">
+      <View className="gap-0.5">
+        <Text className="font-mono text-base text-ink">{image.code}</Text>
+        <Text className="font-sans text-[13px] text-ink-muted">{image.organ}</Text>
+        <Text className="font-sans text-xs text-ink-subtle">Finalizada em {fmt(analysis.finalizedAt)}</Text>
       </View>
-      <View className="gap-1 rounded-xs border border-line bg-surface-alt p-4">
-        <Text className="font-mono text-[10px] uppercase text-ink-subtle">Índice final</Text>
-        <Text className="font-mono-bold text-3xl text-primary">{formatKi67(ki67)}</Text>
-        <StratBadge index={ki67} />
-      </View>
-      <View className="gap-2 rounded-xs border border-surface-alt bg-white p-3">
-        <KeyValue label="● Reagentes (DAB):" value={counts.reagents} valueClassName="text-warn" />
-        <KeyValue label="○ Não reagentes (HEM):" value={counts.nonReagents} valueClassName="text-sky-700" />
-        <View className="border-t border-surface-alt pt-1">
-          <KeyValue label="Total de células:" value={counts.total} />
+
+      <View className="overflow-hidden rounded-xs border border-line">
+        {([['reagente', 'Reagentes', counts.reagents], ['nao_reagente', 'Não reagentes', counts.nonReagents]] as const).map(([label, name, n], i) => (
+          <View key={label} className={`min-h-11 flex-row items-center gap-3 px-3 ${i ? 'border-t border-line' : ''}`}>
+            <ClassSwatch label={label} size={12} />
+            <Text className="flex-1 font-sans text-[13px] text-ink">{name}</Text>
+            <Text className="font-mono text-lg text-ink">{n}</Text>
+          </View>
+        ))}
+        <View className="border-t border-line bg-surface px-3 py-2">
+          <KeyValue label="Total marcado" value={counts.total} />
         </View>
       </View>
-      <View>
-        <Text className="mb-1 font-sans-semibold text-[11px] text-ink">Observação clínica registrada:</Text>
-        <Text className="rounded-xs border border-line bg-surface p-2.5 font-sans text-xs italic text-ink-muted">“{analysis.observation || 'Sem observações registradas.'}”</Text>
+
+      <View className="gap-1.5">
+        <Text className="font-sans-medium text-[13px] text-ink">Observação</Text>
+        <Text className="font-sans text-[13px] leading-5 text-ink-muted">{analysis.observation || 'Sem observação.'}</Text>
       </View>
+
       <View className="gap-2 border-t border-line pt-4">
-        <Button label="Ver histórico de versões" icon={History} variant="outline" onPress={() => setHistoryOpen(true)} />
-        <Button label="Voltar à fila de imagens" onPress={() => router.replace('/avaliador')} />
+        <Button label="Ver versões salvas" icon={History} variant="outline" onPress={() => setHistoryOpen(true)} />
+        <Button label="Voltar para minhas imagens" onPress={() => router.replace('/avaliador')} />
       </View>
     </View>
   );
 
   return (
     <View className="flex-1 bg-surface">
-      <View className="flex-row flex-wrap items-center justify-between gap-2 border-b border-emerald-300 bg-emerald-50 px-6 py-2.5">
-        <View className="flex-shrink flex-row flex-wrap items-center gap-2">
-          <ShieldCheck size={20} color="#047857" />
-          <Text className="font-sans-bold text-sm text-emerald-900">Análise finalizada (somente leitura)</Text>
-          <Text className="font-mono text-xs text-emerald-700">· enviada em {analysis.finalizedAt ? new Date(analysis.finalizedAt).toLocaleString('pt-BR') : '—'}</Text>
-        </View>
-        <View className="flex-row items-center gap-2">
-          <Text numberOfLines={1} className="max-w-[220px] rounded-xs border border-emerald-300 bg-white px-2 py-0.5 font-mono text-[11px] text-ink">
-            SHA-256: {analysis.hashSHA256}
-          </Text>
-          <Pressable onPress={() => router.replace('/avaliador')} className="min-h-11 flex-row items-center gap-1">
-            <ArrowLeft size={16} color={colors.primary} />
-            <Text className="font-sans-semibold text-xs text-primary">Voltar para lista</Text>
-          </Pressable>
-        </View>
+      <View className="flex-row flex-wrap items-center justify-between gap-2 border-b border-line bg-white px-4 py-2 lg:px-6">
+        <Pressable onPress={() => router.replace('/avaliador')} className="min-h-11 flex-row items-center gap-1.5">
+          <ArrowLeft size={16} color={colors.ink} />
+          <Text className="font-sans text-[13px] text-ink">Minhas imagens</Text>
+        </Pressable>
+        <Text className="font-sans text-xs text-ink-subtle">Somente leitura · {analysis.marks.length} marcações travadas</Text>
       </View>
 
       <View className={`flex-1 ${wide ? 'flex-row' : ''}`}>
-        <View className={`items-center justify-center bg-slate-900 p-4 ${wide ? 'flex-1' : 'h-80'}`}>
-          <View className="relative h-full w-full max-w-4xl overflow-hidden rounded-xs border border-slate-700">
-            <SlideView uri={imageUri ?? image.imageUrl} imageWidth={image.width} imageHeight={image.height} layers={[{ marks: analysis.marks }]} className="flex-1" />
-            <View className="absolute left-3 top-3 flex-row items-center gap-1.5 rounded-xs border border-slate-700 bg-slate-950/80 px-2 py-1">
-              <Lock size={14} color="#34d399" />
-              <Text className="font-mono text-xs text-white">Lâmina bloqueada · {analysis.marks.length} marcações seladas</Text>
-            </View>
-          </View>
+        <View className={`bg-[#2a2b2e] ${wide ? 'flex-1' : 'h-80'}`}>
+          <SlideView uri={imageUri ?? image.imageUrl} imageWidth={image.width} imageHeight={image.height} layers={[{ marks: analysis.marks }]} className="flex-1" />
         </View>
-        {wide ? (
-          <ScrollView className="w-80 flex-none border-l border-line bg-white" contentContainerClassName="p-5">
-            {info}
-          </ScrollView>
-        ) : (
-          <ScrollView className="flex-1 bg-white" contentContainerClassName="p-5">
-            {info}
-          </ScrollView>
-        )}
+        <ScrollView className={wide ? 'w-80 flex-none border-l border-line bg-white' : 'flex-1 bg-white'} contentContainerClassName="p-5">
+          {info}
+        </ScrollView>
       </View>
 
       <VersionHistoryDialog visible={historyOpen} onClose={() => setHistoryOpen(false)} history={analysis.history} canRestore={false} onRestore={async () => false} />

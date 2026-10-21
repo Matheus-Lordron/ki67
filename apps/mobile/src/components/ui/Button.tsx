@@ -6,29 +6,30 @@ import { colors } from '@/theme/colors';
 
 type Variant = 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger' | 'soft';
 
+// Um botão principal por tela (escuro); os demais ficam contidos (borda ou sem fundo).
 const box: Record<Variant, string> = {
   primary: 'bg-primary web:hover:bg-primary-dark',
-  secondary: 'bg-primary-dark web:hover:bg-primary',
-  outline: 'bg-white border border-line web:hover:bg-surface-alt',
+  secondary: 'bg-primary web:hover:bg-primary-dark',
+  outline: 'bg-white border border-line web:hover:bg-surface',
   ghost: 'web:hover:bg-surface-alt',
-  danger: 'bg-white border border-red-300 web:hover:bg-rose-50',
-  soft: 'bg-hema-soft border border-hema web:hover:bg-sky-200',
+  danger: 'bg-white border border-line web:hover:bg-danger-soft',
+  soft: 'bg-surface-alt web:hover:bg-primary-soft',
 };
 const text: Record<Variant, string> = {
   primary: 'text-white',
   secondary: 'text-white',
-  outline: 'text-primary',
-  ghost: 'text-primary',
+  outline: 'text-ink',
+  ghost: 'text-ink',
   danger: 'text-danger',
-  soft: 'text-sky-700',
+  soft: 'text-ink',
 };
 const iconColor: Record<Variant, string> = {
   primary: colors.white,
   secondary: colors.white,
-  outline: colors.primary,
-  ghost: colors.primary,
+  outline: colors.ink,
+  ghost: colors.ink,
   danger: colors.danger,
-  soft: colors.hema,
+  soft: colors.ink,
 };
 
 interface ButtonProps {
@@ -59,14 +60,14 @@ export function Button({ label, onPress, variant = 'primary', icon: Icon, iconRi
       className={`flex-row items-center justify-center gap-1.5 rounded-xs ${sizes[size]} ${box[variant]} ${inactive ? 'opacity-50' : ''} ${className}`}
     >
       {loading ? <ActivityIndicator size="small" color={iconColor[variant]} /> : Icon ? <Icon size={size === 'sm' ? 14 : 16} color={iconColor[variant]} /> : null}
-      <Text className={`font-sans-semibold text-xs ${text[variant]}`}>{label}</Text>
+      <Text className={`font-sans-medium ${size === 'sm' ? 'text-xs' : 'text-[13px]'} ${text[variant]}`}>{label}</Text>
       {IconRight ? <IconRight size={14} color={iconColor[variant]} /> : null}
     </Pressable>
   );
 }
 
 /** Botão só de ícone, com alvo de toque de 44 px (RNF-12). */
-export function IconButton({ icon: Icon, onPress, label, color = colors.inkSubtle, active, disabled, size = 18, className = '' }: {
+export function IconButton({ icon: Icon, onPress, label, color = colors.inkMuted, active, disabled, size = 18, className = '' }: {
   icon: LucideIcon;
   onPress?: () => void;
   label: string;

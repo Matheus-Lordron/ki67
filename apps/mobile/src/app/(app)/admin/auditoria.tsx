@@ -11,10 +11,8 @@ export default function SystemAuditScreen() {
   return (
     <Screen>
       <PageHeader
-        title="Log de Auditoria Global do Sistema"
-        badge="SOMENTE-INCLUSÃO"
-        badgeTone="success"
-        description="Registro contínuo de autenticações, anotações, validações, uploads, atribuições e mudanças de usuário."
+        title="Registro de atividades"
+        description="Entradas, anotações, validações, envios, atribuições e mudanças de usuário em todos os projetos."
       />
       <AuditLogView logs={logs} users={users} images={images} />
     </Screen>

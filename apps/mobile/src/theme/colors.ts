@@ -1,18 +1,20 @@
-// Cores para uso fora do className (canvas Skia, ícones, StatusBar).
+// Cores para uso fora do className (canvas SVG, ícones, StatusBar).
 // Mantenha em sincronia com tailwind.config.js.
 export const colors = {
-  primary: '#00236f',
-  primaryDark: '#1e3a8a',
-  surface: '#f8f9ff',
-  surfaceAlt: '#eff4ff',
-  ink: '#0b1c30',
-  inkMuted: '#444651',
-  inkSubtle: '#757682',
-  line: '#c5c5d3',
+  primary: '#1f2124',
+  primaryDark: '#000000',
+  surface: '#f5f5f2',
+  surfaceAlt: '#ecebe7',
+  ink: '#1f2124',
+  inkMuted: '#4f5156',
+  inkSubtle: '#76787d',
+  line: '#d9d8d2',
   dab: '#8e4d2d',
   dabDashed: '#ffb595',
-  hema: '#0284c7',
-  hemaDashed: '#38bdf8',
-  danger: '#ba1a1a',
+  hema: '#2f6f9f',
+  hemaDashed: '#5aa3d6',
+  danger: '#b42318',
+  success: '#2f6b3a',
+  warning: '#9a5b0b',
   white: '#ffffff',
 } as const;

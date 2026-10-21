@@ -1,10 +1,10 @@
 import type { DocumentPickerAsset } from 'expo-document-picker';
-import { AlertTriangle, CheckCircle2, FileImage, Plus, UploadCloud } from 'lucide-react-native';
+import { AlertTriangle, FileImage, Plus, UploadCloud } from 'lucide-react-native';
 import { useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 
 import { Button } from '@/components/ui/Button';
-import { Badge, Callout, Card, EmptyState, KeyValue, PageHeader } from '@/components/ui/Card';
+import { Callout, Card, EmptyState, KeyValue, PageHeader } from '@/components/ui/Card';
 import { Dialog } from '@/components/ui/Dialog';
 import { TextField } from '@/components/ui/Field';
 import { Grid } from '@/components/ui/Grid';
@@ -86,45 +86,36 @@ export default function BatchesAndImagesScreen() {
   return (
     <Screen>
       <PageHeader
-        title="Gerenciamento de Lotes e Imagens IHC"
+        title="Lotes"
         description={<ProjectPicker />}
         actions={
           <>
-            <Button label={`Upload em lote (até ${env.uploadMaxMb} MB)`} icon={UploadCloud} variant="outline" disabled={!batches.length} onPress={() => openUpload()} />
-            <Button label="Criar Novo Lote" icon={Plus} disabled={!project} onPress={() => setCreateOpen(true)} />
+            <Button label="Enviar imagens" icon={UploadCloud} variant="outline" disabled={!batches.length} onPress={() => openUpload()} />
+            <Button label="Novo lote" icon={Plus} disabled={!project} onPress={() => setCreateOpen(true)} />
           </>
         }
       />
 
       {batches.length === 0 ? (
-        <EmptyState icon={FileImage} title="Nenhum lote neste projeto" description="Crie um lote, defina quantos avaliadores cada imagem recebe (N) e envie as imagens." />
+        <EmptyState title="Nenhum lote neste projeto" description="Crie um lote, defina quantos avaliadores cada imagem recebe e envie as imagens." />
       ) : (
         <Grid>
           {batches.map((b) => {
             const count = images.filter((i) => i.batchId === b.id).length;
             return (
-              <Card key={b.id} className="h-full justify-between">
-                <View>
-                  <View className="mb-2 flex-row items-center justify-between">
-                    <Badge label={`N = ${b.evaluatorsPerImage} avaliadores/img`} />
-                    <Text className="font-mono text-[11px] text-ink-subtle">{new Date(b.createdAt).toLocaleDateString('pt-BR')}</Text>
-                  </View>
-                  <Text className="mb-1 font-sans-bold text-base text-ink">{b.name}</Text>
-                  <Text className="mb-4 font-sans text-xs leading-5 text-ink-muted">{b.description || 'Sem descrição.'}</Text>
-                  <View className="mb-4 gap-1 rounded-xs border border-line bg-surface p-3">
-                    <KeyValue label="Imagens no lote:" value={`${count} lâminas`} />
-                    <KeyValue label="Criado por:" value={b.createdBy} />
-                  </View>
+              <Card key={b.id} className="h-full justify-between p-4">
+                <View className="gap-1">
+                  <Text className="font-sans-semibold text-[15px] text-ink">{b.name}</Text>
+                  <Text className="font-sans text-[13px] leading-5 text-ink-muted">{b.description || 'Sem descrição.'}</Text>
                 </View>
-                <View className="flex-row items-center justify-between border-t border-surface-alt pt-3">
-                  <View className="flex-row items-center gap-1">
-                    <CheckCircle2 size={14} color="#047857" />
-                    <Text className="font-sans-semibold text-[11px] text-emerald-700">Protocolo cego ativo</Text>
-                  </View>
-                  <Pressable onPress={() => openUpload(b.id)} className="min-h-11 justify-center">
-                    <Text className="font-sans-semibold text-xs text-primary">Adicionar lâminas</Text>
-                  </Pressable>
+                <View className="mt-4 gap-1.5">
+                  <KeyValue label="Imagens" value={count} />
+                  <KeyValue label="Avaliadores por imagem" value={b.evaluatorsPerImage} />
+                  <KeyValue label="Criado em" value={new Date(b.createdAt).toLocaleDateString('pt-BR')} />
                 </View>
+                <Pressable onPress={() => openUpload(b.id)} className="mt-3 min-h-11 justify-center border-t border-line pt-2">
+                  <Text className="font-sans text-[13px] text-ink underline">Enviar imagens para este lote</Text>
+                </Pressable>
               </Card>
             );
           })}
@@ -134,59 +125,59 @@ export default function BatchesAndImagesScreen() {
       <Dialog
         visible={createOpen}
         onClose={() => setCreateOpen(false)}
-        title="Criar novo lote de anotação"
-        subtitle="Defina o nome e N avaliadores por imagem (mínimo 1, padrão 3)"
+        title="Novo lote"
+        subtitle="Cada imagem do lote será anotada por esse número de avaliadores."
         footer={
           <>
             <Button label="Cancelar" variant="outline" onPress={() => setCreateOpen(false)} />
-            <Button label="Salvar e criar lote" onPress={submitBatch} disabled={!name.trim()} />
+            <Button label="Criar lote" onPress={submitBatch} disabled={!name.trim()} />
           </>
         }
       >
-        <TextField label="Nome do lote *" value={name} onChangeText={setName} placeholder="Ex.: Lote #845 - Biópsias gástricas Ki-67" />
+        <TextField label="Nome" value={name} onChangeText={setName} placeholder="Ex.: Biópsias gástricas, outubro" />
         <View>
-          <TextField label="Avaliadores por imagem (N) *" value={n} onChangeText={(v) => setN(v.replace(/\D/g, '').slice(0, 2))} keyboardType="number-pad" mono />
-          <Text className="mt-1 font-sans text-[10px] text-ink-subtle">Quantas análises independentes e cegas cada imagem precisa antes de ir para a validação. Com N = 1 não há comparação.</Text>
+          <TextField label="Avaliadores por imagem" value={n} onChangeText={(v) => setN(v.replace(/\D/g, '').slice(0, 2))} keyboardType="number-pad" mono />
+          <Text className="mt-1 font-sans text-xs text-ink-subtle">Quantas análises independentes cada imagem precisa antes da validação. Com 1, não há comparação.</Text>
         </View>
-        <TextField label="Descrição do lote" value={description} onChangeText={setDescription} multiline placeholder="Contexto clínico, ampliação, coloração (ex.: 40x DAB)..." />
+        <TextField label="Descrição" value={description} onChangeText={setDescription} multiline placeholder="Material, ampliação, coloração…" />
       </Dialog>
 
       <Dialog
         visible={uploadOpen}
         onClose={() => setUploadOpen(false)}
-        title="Upload em lote de imagens"
+        title="Enviar imagens"
         subtitle={`JPG, PNG ou TIFF de até ${env.uploadMaxMb} MB cada`}
         icon={UploadCloud}
         maxWidth={560}
         footer={
           <>
             <Button label="Fechar" variant="outline" onPress={() => setUploadOpen(false)} />
-            <Button label={progress ? 'Processando...' : `Higienizar e enviar ${picked.length || ''}`.trim()} icon={UploadCloud} loading={!!progress} disabled={!picked.length || !batchId} onPress={upload} />
+            <Button label={progress ? 'Enviando…' : picked.length ? `Enviar ${picked.length}` : 'Enviar'} loading={!!progress} disabled={!picked.length || !batchId} onPress={upload} />
           </>
         }
       >
-        <Callout tone="warning" icon={AlertTriangle} title="Aviso obrigatório: metadados de texto (EXIF/TIFF)">
-          Antes do envio, o app remove do arquivo os metadados de texto (EXIF, XMP, IPTC, comentários e tags de texto do TIFF), que podem conter nome do paciente, prontuário ou datas. Os pixels da imagem não são alterados.
+        <Callout tone="info" title="Metadados são removidos antes do envio">
+          Textos guardados no arquivo (EXIF, XMP, IPTC, comentários e tags do TIFF) podem conter nome do paciente, prontuário ou datas. O app apaga esses campos sem alterar os pixels.
         </Callout>
         <Select
-          label="Lote de destino"
+          label="Lote"
           value={batchId}
           onChange={setTargetBatch}
           options={batches.map((b) => ({ value: b.id, label: b.name, description: `N = ${b.evaluatorsPerImage}` }))}
         />
-        <Pressable onPress={choose} className="items-center gap-1 rounded-xs border-2 border-dashed border-line p-6 web:hover:bg-surface-alt" accessibilityRole="button">
-          <FileImage size={40} color={colors.primary} />
-          <Text className="font-sans-semibold text-xs text-primary">{picked.length ? `${picked.length} arquivo(s) selecionado(s) · trocar seleção` : 'Toque para selecionar arquivos JPG, PNG ou TIFF'}</Text>
-          <Text className="font-sans text-[11px] text-ink-subtle">Seletor de arquivos do sistema, sem pedir permissão</Text>
+        <Pressable onPress={choose} className="items-center gap-1 rounded-xs border border-dashed border-ink-subtle p-6 web:hover:bg-surface" accessibilityRole="button">
+          <FileImage size={24} color={colors.inkMuted} />
+          <Text className="font-sans-medium text-[13px] text-ink">{picked.length ? `${picked.length} arquivo(s) escolhido(s). Trocar` : 'Escolher arquivos'}</Text>
+          <Text className="font-sans text-xs text-ink-subtle">JPG, PNG ou TIFF</Text>
         </Pressable>
 
-        {progress ? <Text className="font-mono text-[11px] text-ink-subtle">{progress}</Text> : null}
+        {progress ? <Text className="font-sans text-xs text-ink-subtle">{progress}</Text> : null}
 
         {withMetadata.length ? (
-          <Callout tone="warning" icon={AlertTriangle} title={`${withMetadata.length} arquivo(s) com metadados de texto (serão removidos):`}>
+          <Callout tone="warning" icon={AlertTriangle} title={`${withMetadata.length} arquivo(s) com metadados que serão removidos`}>
             <View className="gap-1">
               {withMetadata.map((r) => (
-                <Text key={r.name} className="font-mono text-[10px] text-amber-900">
+                <Text key={r.name} className="font-sans text-xs text-warn">
                   • {r.name}: {r.findings.map((f) => (f.preview ? `${f.kind} (“${f.preview}”)` : f.kind)).join(', ')}
                 </Text>
               ))}
@@ -194,45 +185,23 @@ export default function BatchesAndImagesScreen() {
           </Callout>
         ) : null}
         {reports.filter((r) => r.error).map((r) => (
-          <Text key={r.name} className="font-mono text-[10px] text-rose-800">• {r.name}: {r.error}</Text>
+          <Text key={r.name} className="font-sans text-xs text-danger">• {r.name}: {r.error}</Text>
         ))}
 
         {summary ? (
-          <View className="gap-2 rounded-xs border border-line bg-surface-alt p-3">
-            <View className="flex-row items-center gap-1.5">
-              <CheckCircle2 size={16} color="#047857" />
-              <Text className="font-sans-bold text-xs text-primary">Resumo do processamento</Text>
-            </View>
-            <View className="flex-row gap-2">
-              <SummaryBox value={summary.uploaded.length} label="Enviadas" tone="success" />
-              <SummaryBox value={summary.duplicates.length} label="Duplicadas" tone="warning" />
-              <SummaryBox value={summary.rejected.length} label="Recusadas" tone="danger" />
-            </View>
-            {summary.sanitized ? <Text className="font-mono text-[10px] text-ink-muted">{summary.sanitized} arquivo(s) tiveram metadados removidos.</Text> : null}
-            {summary.uploaded.length ? <Text className="font-mono text-[10px] text-emerald-800">Códigos gerados: {summary.uploaded.join(', ')}</Text> : null}
-            {summary.duplicates.length ? <Text className="font-mono text-[10px] text-amber-800">Mesmo SHA-256 já cadastrado: {summary.duplicates.join(', ')}</Text> : null}
-            {summary.rejected.length ? (
-              <View className="gap-1 border-t border-line pt-2">
-                <Text className="font-sans-semibold text-[10px] text-rose-900">Motivos de recusa:</Text>
-                {summary.rejected.map((r, i) => (
-                  <Text key={i} className="font-mono text-[10px] text-rose-800">• {r.filename}: {r.reason}</Text>
-                ))}
-              </View>
-            ) : null}
+          <View className="gap-1.5 rounded-xs bg-surface p-3">
+            <KeyValue label="Enviadas" value={summary.uploaded.length} />
+            <KeyValue label="Já existiam (mesmo arquivo)" value={summary.duplicates.length} />
+            <KeyValue label="Recusadas" value={summary.rejected.length} />
+            {summary.sanitized ? <Text className="font-sans text-xs text-ink-muted">{summary.sanitized} arquivo(s) tiveram metadados removidos.</Text> : null}
+            {summary.uploaded.length ? <Text className="font-sans text-xs text-ink-muted">Códigos: <Text className="font-mono">{summary.uploaded.join(', ')}</Text></Text> : null}
+            {summary.duplicates.length ? <Text className="font-sans text-xs text-ink-muted">Já cadastradas: <Text className="font-mono">{summary.duplicates.join(', ')}</Text></Text> : null}
+            {summary.rejected.map((r, i) => (
+              <Text key={i} className="font-sans text-xs text-danger">• {r.filename}: {r.reason}</Text>
+            ))}
           </View>
         ) : null}
       </Dialog>
     </Screen>
-  );
-}
-
-function SummaryBox({ value, label, tone }: { value: number; label: string; tone: 'success' | 'warning' | 'danger' }) {
-  const style = { success: 'border-emerald-200 bg-emerald-50 text-emerald-800', warning: 'border-amber-200 bg-amber-50 text-amber-800', danger: 'border-rose-200 bg-rose-50 text-rose-800' }[tone];
-  const [border, bg, fg] = style.split(' ');
-  return (
-    <View className={`flex-1 items-center rounded-xs border p-1.5 ${border} ${bg}`}>
-      <Text className={`font-mono-bold text-sm ${fg}`}>{value}</Text>
-      <Text className={`font-mono text-[11px] ${fg}`}>{label}</Text>
-    </View>
   );
 }
