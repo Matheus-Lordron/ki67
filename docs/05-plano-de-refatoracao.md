@@ -1,6 +1,6 @@
 # 05 · Plano de refatoração
 
-> **Documento vivo.** Versão 0.1, de 21/10/2026. Lista o que muda no código depois do MVP, em que ordem e com quais testes. As prioridades são **segurança e LGPD**; o meio é **desenvolvimento guiado por testes**; e o resultado esperado é um repositório com **front e back separados**. Cada tarefa tem um ID (R-01, R-02...) que aparece nos commits e no pull request que a entrega.
+> **Documento vivo.** Versão 0.2, de 21/10/2026. Lista o que muda no código depois do MVP, em que ordem e com quais testes. As prioridades são **segurança e LGPD**; o meio é **desenvolvimento guiado por testes**; e o resultado esperado é um repositório com **front e back separados**. Cada tarefa tem um ID (R-01, R-02...) que aparece nos commits e no pull request que a entrega.
 
 **Neste documento:** [1. Por que refatorar](#1-por-que-refatorar) · [2. Regras de trabalho](#2-regras-de-trabalho) · [3. Diagnóstico](#3-diagnóstico) · [4. Estrutura alvo](#4-estrutura-alvo) · [5. Fases e tarefas](#5-fases-e-tarefas) · [6. O que depende de autorização](#6-o-que-depende-de-autorização) · [7. Riscos](#7-riscos)
 
@@ -126,6 +126,7 @@ flowchart LR
     F1 --> F2["Fase 2<br/>Segurança"]
     F1 --> F3["Fase 3<br/>LGPD"]
     F2 & F3 --> F4["Fase 4<br/>Domínio"]
+    F1 --> F5["Fase 5<br/>Projetos<br/>configuráveis"]
 ```
 
 As Fases 2 e 3 podem andar em paralelo, com integrantes diferentes. Cada linha das tabelas abaixo é **um pull request**.
@@ -182,6 +183,25 @@ Cada tarefa começa por um teste que reproduz a falha.
 | R-22 | A2 | ICC real, por exemplo ICC(2,1), calculado no backend, no lugar da heurística | Casos com resultado de referência calculado num pacote estatístico (R ou Python) |
 | R-23 | A3 | Coincidência espacial em pixels, com pareamento um para um entre marcações | Casos com imagem retangular e com uma marcação perto de duas do outro avaliador |
 
+### Fase 5 · Projetos configuráveis
+
+O Segmenta deixa de ser só para Ki-67: cada projeto define as próprias classes e a própria equipe. Hoje o banco já tem a tabela `labels` por projeto (nome, cor, símbolo), mas o app usa duas classes fixas (reagente e não reagente). Além disso, o projeto tem um único `manager_id`, e o avaliador só se liga ao projeto pelas atribuições. Esta fase depende das Fases 0 e 1, porque mexe no RLS e no modelo de dados.
+
+| ID | Tarefa | Teste que comprova (escrito antes) |
+| --- | --- | --- |
+| R-24 | **Classes por projeto.** Admin e gestor criam, renomeiam, mudam a cor e desativam classes (N classes, não só duas). Classe em uso não é apagada, só desativada. A anotação, as versões, a comparação e a exportação passam a usar as classes do projeto | pgTAP: só admin e gestor do projeto escrevem em `labels`; uma marcação com classe de outro projeto é recusada. Jest: o painel de contagem mostra uma linha por classe ativa do projeto |
+| R-25 | **Admin edita o projeto:** nome, descrição, situação (ativo ou encerrado) e gestor | pgTAP: só o admin edita; trocar o gestor por alguém que já anotou no projeto é recusado (RN-07); a mudança entra no log |
+| R-26 | **Equipe do projeto com papéis.** Tabela `project_members` (projeto, usuário, papel no projeto: gestor, avaliador ou validador). O admin define quem faz o quê em cada projeto; a atribuição e a fila de validação passam a respeitar essa equipe | pgTAP: só membros avaliadores recebem imagens do projeto; um validador de outro projeto não vê a comparação; a bateria de cegamento (R-05) continua verde |
+| R-27 | **Gestor gerencia a equipe:** adiciona e remove avaliadores e validadores do próprio projeto quando quiser. Remover desativa o vínculo, sem apagar o histórico | pgTAP: o gestor só altera a equipe do próprio projeto; depois de removido, o avaliador não abre mais imagens do projeto, e as análises finalizadas dele continuam na comparação e no log |
+
+**Perguntas para fechar antes de começar:**
+
+1. Os papéis globais de hoje (Admin, Gestor, Avaliador, Validador) continuam, ou o papel passa a valer só dentro de cada projeto?
+2. Um projeto pode ter mais de um gestor?
+3. Ao remover um avaliador com análise em andamento, a análise é cancelada, fica congelada ou volta para ser reatribuída?
+4. Depois que as anotações começaram, mudar uma classe (nome ou cor) vale também para as marcações antigas, ou a classe fica travada?
+5. O índice (como o Ki-67) volta como opção do projeto, ligado a classes escolhidas pelo gestor?
+
 ## 6. O que depende de autorização
 
 Este plano muda só o código do repositório. Ficam **fora** dele, até o grupo autorizar explicitamente:
@@ -210,3 +230,4 @@ Também precisa de decisão fora do código: a proteção da branch `main` no Gi
 | Versão | Data | Mudança |
 | --- | --- | --- |
 | 0.1 | 21/10/2026 | Diagnóstico de segurança, LGPD, testes e organização; estrutura alvo com `frontend/` e `backend/`; fases e tarefas R-01 a R-23 com o teste de cada uma. |
+| 0.2 | 21/10/2026 | Fase 5: classes configuráveis por projeto, edição de projeto pelo admin e equipe do projeto gerida pelo admin e pelo gestor (R-24 a R-27), com as perguntas em aberto. |
