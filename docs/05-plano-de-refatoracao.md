@@ -1,6 +1,6 @@
 # 05 · Plano de refatoração
 
-> **Documento vivo.** Versão 0.3, de 21/10/2026. Lista o que muda no código depois do MVP, em que ordem e com quais testes. As prioridades são **segurança e LGPD**; o meio é **desenvolvimento guiado por testes**; e o resultado esperado é um repositório com **front e back separados**. Cada tarefa tem um ID (R-01, R-02...) que aparece nos commits e no pull request que a entrega.
+> **Documento vivo.** Versão 0.4, de 21/10/2026. Lista o que muda no código depois do MVP, em que ordem e com quais testes. As prioridades são **segurança e LGPD**; o meio é **desenvolvimento guiado por testes**; e o resultado esperado é um repositório com **front e back separados**. Cada tarefa tem um ID (R-01, R-02...) que aparece nos commits e no pull request que a entrega.
 
 **Neste documento:** [1. Por que refatorar](#1-por-que-refatorar) · [2. Regras de trabalho](#2-regras-de-trabalho) · [3. Diagnóstico](#3-diagnóstico) · [4. Estrutura alvo](#4-estrutura-alvo) · [5. Fases e tarefas](#5-fases-e-tarefas) · [6. O que depende de autorização](#6-o-que-depende-de-autorização) · [7. Riscos](#7-riscos)
 
@@ -197,7 +197,7 @@ O Segmenta deixa de ser só para Ki-67: cada projeto define as próprias classes
 
 **Decisões tomadas em 21/10/2026:** papéis globais e fixos, alterados só pelo admin; mais de um gestor por projeto, só com autorização do admin; análises de quem foi removido são mantidas, destacadas, e a gestão decide no fim se contam; mudar nome ou cor de uma classe vale para as marcações antigas e fica destacado no registro de atividades.
 
-**Ainda em aberto:** o índice (como o Ki-67) volta como opção do projeto, calculado a partir de classes escolhidas pelo gestor?
+**Índice (como o Ki-67):** fica fora por enquanto. As telas mostram só a contagem de cada classe.
 
 ### Fase 6 · Salvamento e versões
 
@@ -207,7 +207,7 @@ Hoje o salvamento automático grava uma **versão nova no servidor** a cada 5 se
 | --- | --- | --- |
 | R-28 | **Rascunho automático e versão só no "Salvar".** O salvamento automático passa a guardar só um rascunho, que sobrevive a fechar e reabrir o app (no aparelho, como hoje, e no servidor para trocar de aparelho), sem criar versão. Uma versão nova, que aparece no histórico, só nasce quando o médico aperta **Salvar** (e ao finalizar). O indicador distingue "rascunho guardado" de "salvo como versão N". Muda o RF-21 e o RF-33 em [01 · Visão e requisitos](01-visao-e-requisitos.md) | Jest: alterar marcações e esperar o tempo do salvamento automático não muda o número da versão; reabrir a análise recupera o rascunho; apertar Salvar cria a versão N+1. pgTAP: gravar rascunho não cria linha em `analysis_versions` |
 | R-29 | **Ver uma versão anterior sobre a imagem** e comparar duas versões: marcações adicionadas, removidas e trocadas de classe (RF-35) | Jest: abrir a versão k mostra exatamente as marcações dela; a diferença entre k e k+1 lista as marcações certas, casadas pelo id |
-| R-30 | **Editar depois de finalizar.** O avaliador pode reabrir a própria análise finalizada. A versão finalizada original fica guardada como está; a edição gera versões novas e, ao finalizar de novo, a análise mostra que foi reaberta. O gestor vê a diferença entre a versão finalizada antes e a finalizada depois da edição (usando o R-29), e a reabertura entra no log. Muda a RN-04 e o RF-42 | pgTAP: reabrir não altera nem apaga a versão finalizada original; a reabertura gera evento no log; a fila de validação trata a análise reaberta como não finalizada até ela ser finalizada de novo. Jest: o gestor vê as duas versões finalizadas e a diferença entre elas |
+| R-30 | **Reavaliar depois de finalizar.** O avaliador não reabre sozinho: ele **pede a reavaliação** ao gestor, com um motivo. O gestor aprova ou recusa; aprovada, a análise volta a ser editável. A versão finalizada original fica guardada como está, a edição gera versões novas e, ao finalizar de novo, a análise mostra que foi reavaliada. O gestor vê a diferença entre a versão finalizada antes e a finalizada depois (usando o R-29). Pedido, decisão e nova finalização entram no log. Detalha a RN-04 e o RF-42 (quem reabre continua sendo o gestor) | pgTAP: só o próprio avaliador pede, e só um gestor do projeto aprova; aprovar não altera nem apaga a versão finalizada original; cada passo gera evento no log; a fila de validação trata a análise como não finalizada até ela ser finalizada de novo. Jest: o avaliador vê o pedido como pendente; o gestor vê as duas versões finalizadas e a diferença entre elas |
 
 ## 6. O que depende de autorização
 
@@ -239,3 +239,4 @@ Também precisa de decisão fora do código: a proteção da branch `main` no Gi
 | 0.1 | 21/10/2026 | Diagnóstico de segurança, LGPD, testes e organização; estrutura alvo com `frontend/` e `backend/`; fases e tarefas R-01 a R-23 com o teste de cada uma. |
 | 0.2 | 21/10/2026 | Fase 5: classes configuráveis por projeto, edição de projeto pelo admin e equipe do projeto gerida pelo admin e pelo gestor (R-24 a R-27), com as perguntas em aberto. |
 | 0.3 | 21/10/2026 | Decisões da Fase 5 (papéis globais, vários gestores autorizados pelo admin, análises de removidos mantidas e destacadas, mudança de classe destacada no log) e Fase 6: rascunho automático, versão só no "Salvar", ver versões anteriores e editar depois de finalizar (R-28 a R-30). |
+| 0.4 | 21/10/2026 | R-30: o avaliador pede a reavaliação e o gestor aprova; as duas versões finalizadas ficam guardadas para comparação. Índice fora por enquanto. |
