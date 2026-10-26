@@ -7,6 +7,7 @@ Passo a passo para sair do modo demonstração e usar dados reais. Sem o `.env` 
 1. Crie um projeto em <https://supabase.com> (região **São Paulo**). Anote a senha do banco.
 2. Abra **SQL Editor > New query**, cole todo o arquivo `supabase/schema.sql` e clique em **Run**.
    - Já rodou o `schema.sql` antigo (Fase 1)? Rode só o `supabase/patch_fase4.sql`.
+   - Já tem o banco e ele ainda não tem a coluna `request_id` em `projects` e `batches`? Rode o `supabase/patch_idempotencia.sql` (impede projeto e lote repetidos com clique duplo).
 3. Em **Authentication > Sign In / Providers**, desligue **Allow new users to sign up** (não há autocadastro, RF-04).
 4. Em **Authentication > URL Configuration**, preencha:
    - **Site URL:** `http://localhost:8081`

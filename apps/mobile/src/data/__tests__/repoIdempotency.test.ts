@@ -3,6 +3,8 @@
  * (request_id) ao abrir e a reenvia em toda tentativa. O banco tem a coluna
  * unique e, quando a chave se repete, não insere de novo (ON CONFLICT DO NOTHING).
  */
+import { createBatch, createProject } from '../repo';
+
 const mockUpsert = jest.fn();
 const mockInsert = jest.fn();
 const mockEq = jest.fn();
@@ -20,8 +22,6 @@ jest.mock('@/services/supabase', () => ({
 }));
 jest.mock('@/services/cloudflare', () => ({ getSignedImageUrls: jest.fn() }));
 jest.mock('@/services/device', () => ({ deviceLabel: () => 'teste' }));
-
-import { createBatch, createProject } from '../repo';
 
 const REQUEST_ID = '3f2c9a8e-1b4d-4c6e-9f0a-2b7d5e8c1a43';
 

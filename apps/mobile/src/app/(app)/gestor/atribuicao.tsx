@@ -10,6 +10,7 @@ import { Select } from '@/components/ui/Select';
 import { ProjectPicker, useManagerScope } from '@/features/gestor/useManagerScope';
 import { useAppStore } from '@/state/appStore';
 import { colors } from '@/theme/colors';
+import { useSubmitOnce } from '@/utils/submitGuard';
 
 // Atribuição de avaliadores (RF-10, RF-29, RN-07).
 export default function AssignmentScreen() {
@@ -23,7 +24,6 @@ export default function AssignmentScreen() {
   const [batchId, setBatchId] = useState<string | null>(null);
   const [imageId, setImageId] = useState<string | null>(null);
   const [selected, setSelected] = useState<string[]>([]);
-  const [busy, setBusy] = useState(false);
 
   const batch = batches.find((b) => b.id === batchId) ?? batches[0];
   const image = images.find((i) => i.id === imageId) ?? images[0];
@@ -49,21 +49,19 @@ export default function AssignmentScreen() {
     setSelected((s) => [...s, id]);
   };
 
-  const save = async () => {
+  const { submit: save, pending: busy } = useSubmitOnce(async () => {
     if (!selected.length) {
       showToast('Selecione ao menos 1 avaliador.');
       return;
     }
-    setBusy(true);
     const result = await assignEvaluators(targetImages.map((i) => i.id), selected);
-    setBusy(false);
     if (!result.ok) {
       showToast(result.error);
       return;
     }
     showToast(`Atribuição salva: ${result.created} análise(s) criada(s).`);
     setSelected([]);
-  };
+  });
 
   return (
     <Screen maxWidth={900}>

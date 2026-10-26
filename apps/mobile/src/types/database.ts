@@ -45,6 +45,7 @@ export interface DbProject {
   description: string;
   manager_id: string;
   status: DbProjectStatus;
+  request_id: string | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;
@@ -70,6 +71,7 @@ export interface DbBatch {
   name: string;
   description: string;
   evaluators_per_image: number;
+  request_id: string | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;

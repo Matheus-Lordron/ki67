@@ -11,6 +11,7 @@ import { Screen } from '@/components/ui/Screen';
 import { useRefreshOnFocus } from '@/features/sessao/useRefreshOnFocus';
 import { ROLE_ORDER, useAppStore } from '@/state/appStore';
 import type { User, UserRole } from '@/types';
+import { useSubmitOnce } from '@/utils/submitGuard';
 
 const ROLE_HELP: Record<UserRole, string> = {
   Admin: 'Cadastra usuários e projetos; consulta o log global',
@@ -39,7 +40,7 @@ export default function UsersScreen() {
 
   const toggleIn = (list: UserRole[], role: UserRole) => (list.includes(role) ? list.filter((r) => r !== role) : [...list, role]);
 
-  const submit = async () => {
+  const { submit, pending } = useSubmitOnce(async () => {
     const result = await createUser({ name, email, institution, roles });
     if (!result.ok) {
       showToast(result.error);
@@ -51,7 +52,7 @@ export default function UsersScreen() {
     setEmail('');
     setInstitution('');
     setRoles(['Avaliador']);
-  };
+  });
 
   const saveRoles = async () => {
     if (!editing) return;
@@ -123,7 +124,7 @@ export default function UsersScreen() {
         footer={
           <>
             <Button label="Cancelar" variant="outline" onPress={() => setCreateOpen(false)} />
-            <Button label="Cadastrar e enviar convite" onPress={submit} disabled={!name.trim() || !email.trim() || !roles.length} />
+            <Button label="Cadastrar e enviar convite" onPress={submit} loading={pending} disabled={!name.trim() || !email.trim() || !roles.length} />
           </>
         }
       >

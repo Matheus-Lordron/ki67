@@ -16,6 +16,7 @@ import { type FileMetadataReport, inspectAssets } from '@/services/cloudflare';
 import { pickImages } from '@/services/files';
 import { type UploadSummary, useAppStore } from '@/state/appStore';
 import { colors } from '@/theme/colors';
+import { newRequestId, useSubmitOnce } from '@/utils/submitGuard';
 
 // Lotes e upload (RF-08, RF-09, RF-11, RF-29, RNV-07).
 export default function BatchesAndImagesScreen() {
@@ -28,6 +29,7 @@ export default function BatchesAndImagesScreen() {
   const [name, setName] = useState('');
   const [n, setN] = useState('3');
   const [description, setDescription] = useState('');
+  const [requestId, setRequestId] = useState(newRequestId);
 
   const [uploadOpen, setUploadOpen] = useState(false);
   const [targetBatch, setTargetBatch] = useState<string | null>(null);
@@ -38,9 +40,14 @@ export default function BatchesAndImagesScreen() {
 
   const batchId = targetBatch ?? batches[0]?.id ?? null;
 
-  const submitBatch = async () => {
+  const openCreate = () => {
+    setRequestId(newRequestId());
+    setCreateOpen(true);
+  };
+
+  const { submit: submitBatch, pending: creatingBatch } = useSubmitOnce(async () => {
     if (!project) return;
-    const result = await createBatch(project.id, name, Number.parseInt(n, 10) || 0, description);
+    const result = await createBatch(project.id, name, Number.parseInt(n, 10) || 0, description, requestId);
     if (!result.ok) {
       showToast(result.error);
       return;
@@ -50,7 +57,7 @@ export default function BatchesAndImagesScreen() {
     setName('');
     setN('3');
     setDescription('');
-  };
+  });
 
   const openUpload = (id?: string) => {
     setTargetBatch(id ?? batchId);
@@ -91,7 +98,7 @@ export default function BatchesAndImagesScreen() {
         actions={
           <>
             <Button label={`Upload em lote (até ${env.uploadMaxMb} MB)`} icon={UploadCloud} variant="outline" disabled={!batches.length} onPress={() => openUpload()} />
-            <Button label="Criar Novo Lote" icon={Plus} disabled={!project} onPress={() => setCreateOpen(true)} />
+            <Button label="Criar Novo Lote" icon={Plus} disabled={!project} onPress={openCreate} />
           </>
         }
       />
@@ -139,7 +146,7 @@ export default function BatchesAndImagesScreen() {
         footer={
           <>
             <Button label="Cancelar" variant="outline" onPress={() => setCreateOpen(false)} />
-            <Button label="Salvar e criar lote" onPress={submitBatch} disabled={!name.trim()} />
+            <Button label="Salvar e criar lote" onPress={submitBatch} loading={creatingBatch} disabled={!name.trim()} />
           </>
         }
       >

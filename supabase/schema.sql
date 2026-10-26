@@ -104,6 +104,7 @@ create table public.projects (
   description text not null default '' check (char_length(description) <= 4000),
   manager_id  uuid not null references public.profiles (id),
   status      public.project_status not null default 'ativo',
+  request_id  uuid unique,                       -- chave do formulário: reenviar não duplica
   created_by  uuid references public.profiles (id),
   created_at  timestamptz not null default now(),
   updated_at  timestamptz not null default now()
@@ -133,6 +134,7 @@ create table public.batches (
   name                 text not null check (char_length(btrim(name)) between 2 and 160),
   description          text not null default '' check (char_length(description) <= 4000),
   evaluators_per_image smallint not null default 3 check (evaluators_per_image between 1 and 26),
+  request_id           uuid unique,              -- chave do formulário: reenviar não duplica
   created_by           uuid references public.profiles (id),
   created_at           timestamptz not null default now(),
   updated_at           timestamptz not null default now(),
@@ -2087,9 +2089,10 @@ grant select on all tables in schema public to authenticated;
 
 -- Escritas diretas permitidas, coluna por coluna (o RLS ainda decide quem):
 grant update (name, institution, avatar_url) on public.profiles to authenticated;
-grant insert (code, name, description, manager_id, status), update (name, description, manager_id, status)
+-- request_id só entra no insert: a chave do formulário não muda depois de criada.
+grant insert (code, name, description, manager_id, status, request_id), update (name, description, manager_id, status)
   on public.projects to authenticated;
-grant insert (project_id, code, name, description, evaluators_per_image), update (name, description, evaluators_per_image)
+grant insert (project_id, code, name, description, evaluators_per_image, request_id), update (name, description, evaluators_per_image)
   on public.batches to authenticated;
 grant insert (project_id, key, name, color, symbol, index_role, is_active, sort_order),
       update (name, color, symbol, is_active, sort_order)

@@ -160,6 +160,8 @@ ki67/
 ├── supabase/
 │   ├── schema.sql                ← banco completo: tabelas, RLS, triggers e RPCs
 │   ├── patch_fase4.sql           ← atualização para quem rodou a versão anterior
+│   ├── patch_idempotencia.sql    ← clique duplo não cria projeto ou lote repetido
+│   ├── tests/database/           ← testes pgTAP do banco
 │   ├── bootstrap_admin.sql       ← cria o primeiro admin
 │   └── functions/                ← Edge Functions: login, 2FA, usuários e R2
 └── docs/

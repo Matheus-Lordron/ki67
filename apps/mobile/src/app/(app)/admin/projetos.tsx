@@ -11,6 +11,7 @@ import { Screen } from '@/components/ui/Screen';
 import { Select } from '@/components/ui/Select';
 import { useAppStore } from '@/state/appStore';
 import { colors } from '@/theme/colors';
+import { newRequestId, useSubmitOnce } from '@/utils/submitGuard';
 
 // Projetos e gestores (RF-09): só o admin cria projetos e designa o gestor.
 export default function ProjectsScreen() {
@@ -23,13 +24,19 @@ export default function ProjectsScreen() {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [managerId, setManagerId] = useState<string | null>(null);
+  const [requestId, setRequestId] = useState(newRequestId);
 
   const managers = users.filter((u) => u.roles.includes('Gestor') && u.isActive);
   const chosen = managerId ?? managers[0]?.id ?? null;
 
-  const submit = async () => {
+  const openCreate = () => {
+    setRequestId(newRequestId());
+    setOpen(true);
+  };
+
+  const { submit, pending } = useSubmitOnce(async () => {
     if (!chosen) return;
-    const result = await createProject(name, description, chosen);
+    const result = await createProject(name, description, chosen, requestId);
     if (!result.ok) {
       showToast(result.error);
       return;
@@ -38,7 +45,7 @@ export default function ProjectsScreen() {
     setOpen(false);
     setName('');
     setDescription('');
-  };
+  });
 
   return (
     <Screen>
@@ -46,7 +53,7 @@ export default function ProjectsScreen() {
         title="Projetos & Estudos"
         badge="GOVERNANÇA"
         description="Crie os projetos de pesquisa e designe o gestor responsável por cada um."
-        actions={<Button label="Criar novo projeto" icon={Plus} onPress={() => setOpen(true)} />}
+        actions={<Button label="Criar novo projeto" icon={Plus} onPress={openCreate} />}
       />
       <Grid cols={{ base: 1, md: 2 }}>
         {projects.map((p) => (
@@ -83,7 +90,7 @@ export default function ProjectsScreen() {
         footer={
           <>
             <Button label="Cancelar" variant="outline" onPress={() => setOpen(false)} />
-            <Button label="Criar e designar" onPress={submit} disabled={!name.trim() || !chosen} />
+            <Button label="Criar e designar" onPress={submit} loading={pending} disabled={!name.trim() || !chosen} />
           </>
         }
       >
