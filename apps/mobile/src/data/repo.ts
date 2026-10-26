@@ -330,13 +330,18 @@ export function submitValidation(input: {
 
 // --- Gestor ---------------------------------------------------------------------------
 
-export async function createBatch(projectId: string, name: string, n: number, description: string) {
+/** Chave do formulário (request_id): repetir o envio não cria outra linha (ON CONFLICT DO NOTHING). */
+const ONCE = { onConflict: 'request_id', ignoreDuplicates: true } as const;
+
+export async function createBatch(projectId: string, name: string, n: number, description: string, requestId: string) {
   const existing = await rows<{ code: string }>(supabase.from('batches').select('code').eq('project_id', projectId));
   let seq = existing.length + 1;
   for (let attempt = 0; attempt < 5; attempt++, seq++) {
     const code = `LT${String(seq).padStart(2, '0')}`;
     if (existing.some((b) => b.code === code)) continue;
-    const { error } = await supabase.from('batches').insert({ project_id: projectId, code, name, description, evaluators_per_image: n });
+    const { error } = await supabase
+      .from('batches')
+      .upsert({ project_id: projectId, code, name, description, evaluators_per_image: n, request_id: requestId }, ONCE);
     if (!error) return;
     if (error.code !== '23505') throw new ApiError(error.message, error.code); // 23505 = código repetido: tenta o próximo
   }
@@ -362,7 +367,7 @@ export const adminUpdateUser = (userId: string, patch: { roles?: string[]; isAct
     p_is_active: patch.isActive ?? null,
   });
 
-export async function createProject(name: string, description: string, managerId: string) {
+export async function createProject(name: string, description: string, managerId: string, requestId: string) {
   const abbr = name
     .normalize('NFD')
     .replace(/[̀-ͯ]/g, '')
@@ -370,7 +375,7 @@ export async function createProject(name: string, description: string, managerId
     .replace(/[^A-Z0-9]+/g, '')
     .slice(0, 8) || 'ESTUDO';
   const code = `${abbr}-${new Date().getFullYear()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
-  const { error } = await supabase.from('projects').insert({ code, name, description, manager_id: managerId });
+  const { error } = await supabase.from('projects').upsert({ code, name, description, manager_id: managerId, request_id: requestId }, ONCE);
   if (error) throw new ApiError(error.message, error.code);
 }
 

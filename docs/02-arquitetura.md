@@ -135,6 +135,8 @@ ki67/
 ├── supabase/
 │   ├── schema.sql                    # banco completo: tabelas, RLS, triggers e RPCs
 │   ├── patch_fase4.sql               # atualização para quem rodou o schema da Fase 1
+│   ├── patch_idempotencia.sql        # request_id: clique duplo não cria projeto ou lote repetido
+│   ├── tests/database/               # testes pgTAP (npx supabase test db, com Docker)
 │   ├── bootstrap_admin.sql           # transforma uma conta em admin
 │   ├── config.toml                   # configuração do Supabase CLI e das funções
 │   └── functions/                    # Edge Functions (Deno) e o .env.example delas

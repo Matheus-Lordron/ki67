@@ -176,7 +176,8 @@ interface AppState {
   }) => Promise<Result>;
 
   // Gestor (RF-08 a RF-10, RF-29, RF-40)
-  createBatch: (projectId: string, name: string, evaluatorsPerImage: number, description: string) => Promise<Result>;
+  /** `requestId`: chave gerada ao abrir o formulário; reenviar com a mesma chave não duplica. */
+  createBatch: (projectId: string, name: string, evaluatorsPerImage: number, description: string, requestId: string) => Promise<Result>;
   registerImages: (batchId: string, files: NewImageInput[]) => Promise<{ uploaded: string[]; duplicates: string[] }>;
   /** Higieniza, calcula o SHA-256 e envia (modo real: R2 + register_image + pré-anotação). */
   uploadImages: (batchId: string, assets: DocumentPickerAsset[], onProgress?: (text: string) => void) => Promise<UploadSummary>;
@@ -186,7 +187,7 @@ interface AppState {
   createUser: (data: { name: string; email: string; institution?: string; roles: UserRole[] }) => Promise<Result>;
   toggleUserActive: (userId: string) => Promise<Result>;
   updateUserRoles: (userId: string, roles: UserRole[]) => Promise<Result>;
-  createProject: (name: string, description: string, managerId: string) => Promise<Result>;
+  createProject: (name: string, description: string, managerId: string, requestId: string) => Promise<Result>;
 }
 
 let toastTimer: ReturnType<typeof setTimeout> | undefined;
@@ -553,11 +554,11 @@ export const useAppStore = create<AppState>()((set, get) => {
     },
 
     // --- Gestor ---------------------------------------------------------------------
-    createBatch: async (projectId, name, evaluatorsPerImage, description) => {
+    createBatch: async (projectId, name, evaluatorsPerImage, description, requestId) => {
       const user = me();
       if (!name.trim()) return { ok: false, error: 'O nome do lote é obrigatório.' };
       if (evaluatorsPerImage < 1 || evaluatorsPerImage > 26) return { ok: false, error: 'N deve ficar entre 1 e 26.' };
-      if (real) return remote(() => repo.createBatch(projectId, name.trim(), evaluatorsPerImage, description.trim()));
+      if (real) return remote(() => repo.createBatch(projectId, name.trim(), evaluatorsPerImage, description.trim(), requestId));
       const batch: Batch = {
         id: newId('batch'),
         projectId,
@@ -739,13 +740,13 @@ export const useAppStore = create<AppState>()((set, get) => {
       get().addAuditLog('PAPEIS_ALTERADOS', 'user_management', `${target?.name}: ${roles.join(', ')}.`);
       return { ok: true };
     },
-    createProject: async (name, description, managerId) => {
+    createProject: async (name, description, managerId, requestId) => {
       if (!name.trim()) return { ok: false, error: 'O nome do projeto é obrigatório.' };
       const manager = get().users.find((u) => u.id === managerId);
       if (!manager || !manager.isActive || !manager.roles.includes('Gestor')) {
         return { ok: false, error: 'O gestor designado precisa estar ativo e ter o papel Gestor.' };
       }
-      if (real) return remote(() => repo.createProject(name.trim(), description.trim(), managerId));
+      if (real) return remote(() => repo.createProject(name.trim(), description.trim(), managerId, requestId));
       const project: Project = {
         id: newId('proj'),
         name: name.trim(),

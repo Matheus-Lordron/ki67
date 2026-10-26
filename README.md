@@ -160,6 +160,8 @@ ki67/
 ├── supabase/
 │   ├── schema.sql                ← banco completo: tabelas, RLS, triggers e RPCs
 │   ├── patch_fase4.sql           ← atualização para quem rodou a versão anterior
+│   ├── patch_idempotencia.sql    ← clique duplo não cria projeto ou lote repetido
+│   ├── tests/database/           ← testes pgTAP do banco
 │   ├── bootstrap_admin.sql       ← cria o primeiro admin
 │   └── functions/                ← Edge Functions: login, 2FA, usuários e R2
 └── docs/
@@ -180,6 +182,8 @@ O que mora em cada pasta, e onde mexer para alterar cada coisa, está em [02 · 
 | [02 · Arquitetura](docs/02-arquitetura.md) | Onde mexer para alterar cada coisa: camadas, mapa de navegação, diagramas de sequência, modelo de dados, RPCs, Edge Functions, decisões e limitações |
 | [03 · Planejamento](docs/03-planejamento.md) | Cronograma até o Laboratório de Avaliação, situação atual, branches (uma por integrante), convenção de commits e Definition of Done |
 | [04 · Guia de configuração](docs/04-guia-de-configuracao.md) | Como ligar o modo real: Supabase, Cloudflare R2, e-mail do código 2FA, Edge Functions e o app |
+| [05 · Plano de refatoração](docs/05-plano-de-refatoracao.md) | O que muda depois do MVP e em que ordem: diagnóstico de segurança e LGPD, testes primeiro, separação entre frontend e backend, e o teste de cada tarefa |
+| [06 · Plano de execução](docs/06-plano-de-execucao.md) | Em que ordem a refatoração acontece: regras de negócio consolidadas, frentes de trabalho, ondas até o Laboratório, linha de corte e o que depende de autorização |
 
 **Para contribuir:** trabalhe na sua branch pessoal, atualizada com a `main`, escreva commits no padrão Conventional Commits e abra um pull request para a `main` com a documentação atualizada. As regras completas estão em [03 · Planejamento](docs/03-planejamento.md#4-estratégia-de-branches).
 
