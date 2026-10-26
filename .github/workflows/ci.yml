@@ -1,0 +1,51 @@
+# R-01: todo pull request (e todo push na main) passa por lint, tipos, testes e build web.
+# Não usa segredos nem fala com o Supabase ou o Cloudflare reais.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  app:
+    name: App (lint, tipos, testes, build web)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: apps/mobile
+    env:
+      # O build roda sem .env: o app sobe em modo demonstração.
+      EXPO_NO_DOTENV: '1'
+      EXPO_NO_TELEMETRY: '1'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: apps/mobile/package-lock.json
+
+      - name: Instalar dependências
+        run: npm ci --no-audit --no-fund
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Checagem de tipos
+        run: npm run typecheck
+
+      - name: Testes
+        run: npx jest --ci
+
+      - name: Build web
+        run: npx expo export --platform web --output-dir dist
