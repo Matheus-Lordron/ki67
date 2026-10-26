@@ -106,6 +106,9 @@ flowchart LR
 
 ```text
 ki67/
+├── .github/
+│   ├── workflows/ci.yml              # CI: lint, tipos, testes, build web, gitleaks e npm audit
+│   └── dependabot.yml                # atualizações semanais agrupadas (npm e Actions)
 ├── apps/
 │   └── mobile/                       # app Expo: web, Android e iOS
 │       ├── src/

@@ -49,3 +49,45 @@ jobs:
 
       - name: Build web
         run: npx expo export --platform web --output-dir dist
+
+  # R-02: nenhum segredo no histórico. Varre todos os commits, não só o diff.
+  segredos:
+    name: Segredos (gitleaks)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Varredura de segredos
+        run: >
+          docker run --rm -v "$PWD:/repo" ghcr.io/gitleaks/gitleaks:v8.28.0
+          git /repo --redact --no-banner --exit-code 1
+
+  # R-02: o CI falha com vulnerabilidade crítica; alta e moderada aparecem no resumo.
+  dependencias:
+    name: Dependências (npm audit)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: apps/mobile
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Relatório completo
+        run: |
+          {
+            echo '## npm audit (apps/mobile)'
+            echo '```'
+            npm audit || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Bloqueia vulnerabilidade crítica
+        run: npm audit --audit-level=critical

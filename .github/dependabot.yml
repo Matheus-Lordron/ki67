@@ -1,0 +1,35 @@
+# R-02: atualizações semanais, agrupadas para não encher a fila de pull requests.
+# Correções de segurança chegam na hora, fora desta agenda (Dependabot security updates).
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /apps/mobile
+    schedule:
+      interval: weekly
+      day: monday
+      time: '08:00'
+      timezone: America/Sao_Paulo
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: chore(deps)
+    groups:
+      menores:
+        update-types: [minor, patch]
+    # Versão maior do Expo/React Native se atualiza com `npx expo install --fix`, que casa as versões.
+    ignore:
+      - dependency-name: '*'
+        update-types: ['version-update:semver-major']
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: '08:00'
+      timezone: America/Sao_Paulo
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: ci(deps)
+    groups:
+      actions:
+        patterns: ['*']

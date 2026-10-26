@@ -152,6 +152,7 @@ ki67/
 ├── README.md                     ← você está aqui
 ├── LICENSE                       ← MIT
 ├── package.json                  ← scripts da raiz
+├── .github/                      ← CI (testes, segredos, dependências) e Dependabot
 ├── apps/mobile/                  ← app Expo: web, Android e iOS
 │   ├── src/app/                  ← telas (rotas do Expo Router)
 │   ├── src/features/             ← anotação, validação, gestor, auditoria e sessão
