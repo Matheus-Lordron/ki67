@@ -8,7 +8,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { isSupabaseConfigured } from '@/config/env';
 import { deviceLabel } from '@/services/device';
 import { supabase } from '@/services/supabase';
-import { BrandMark } from '@/components/layout/AuthShell';
+import { calculateKi67Index, formatKi67, getKi67Stratification } from '@/utils/ki67';
 
 type Check = { status: 'ok' | 'warn' | 'error'; message: string };
 
@@ -33,25 +33,44 @@ const badge: Record<Check['status'], string> = {
 
 export default function SetupCheckScreen() {
   const supabaseCheck = useQuery({ queryKey: ['setup-check'], queryFn: checkSupabase });
+  const sample = calculateKi67Index(142, 358);
+  const stratum = getKi67Stratification(sample);
 
   return (
     <SafeAreaView className="flex-1 bg-surface">
       <ScrollView contentContainerClassName="items-center px-4 py-8">
         <View className="w-full max-w-xl gap-4">
-          <View className="gap-1 border-b border-line pb-4">
-            <BrandMark />
-            <Text className="font-sans text-[13px] text-ink-muted">Diagnóstico da configuração</Text>
+          <View className="rounded-2xl bg-primary px-6 py-5">
+            <Text className="font-mono-medium text-xs uppercase tracking-widest text-primary-soft">Segmenta Studio</Text>
+            <Text className="mt-1 font-sans-bold text-2xl text-white">Ki-67 IHC</Text>
+            <Text className="mt-1 font-sans text-sm text-primary-soft">Fase 2 · fundação do app</Text>
           </View>
 
-          <View className="gap-2 rounded-xs border border-line bg-white p-5">
+          <View className="gap-2 rounded-2xl border border-line bg-white p-5">
             <Text className="font-sans-semibold text-base text-ink">Supabase</Text>
             {supabaseCheck.isPending ? (
               <Text className="font-sans text-sm text-ink-subtle">Verificando conexão...</Text>
             ) : (
-              <Text className={`rounded-xs border px-3 py-2 font-sans-medium text-sm ${badge[supabaseCheck.data?.status ?? 'error']}`}>
+              <Text className={`rounded-lg border px-3 py-2 font-sans-medium text-sm ${badge[supabaseCheck.data?.status ?? 'error']}`}>
                 {supabaseCheck.data?.message ?? String(supabaseCheck.error)}
               </Text>
             )}
+          </View>
+
+          <View className="gap-3 rounded-2xl border border-line bg-white p-5">
+            <Text className="font-sans-semibold text-base text-ink">Regras do índice (src/utils/ki67.ts)</Text>
+            <View className="flex-row items-center gap-3">
+              <View className="h-4 w-4 rounded-full border-2 border-white bg-dab" />
+              <Text className="font-sans text-sm text-ink-muted">142 reagentes (DAB)</Text>
+            </View>
+            <View className="flex-row items-center gap-3">
+              <View className="h-4 w-4 rounded-full border-2 border-hema bg-white" />
+              <Text className="font-sans text-sm text-ink-muted">358 não reagentes (Hematoxilina)</Text>
+            </View>
+            <Text className="font-mono-bold text-3xl text-primary">{formatKi67(sample)}</Text>
+            <Text className={`self-start rounded-full border px-3 py-1 font-sans-medium text-xs ${stratum.badgeClass}`}>
+              {stratum.label}
+            </Text>
           </View>
 
           <Text className="text-center font-mono text-xs text-ink-subtle">

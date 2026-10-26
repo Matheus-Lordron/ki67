@@ -32,7 +32,7 @@ export function Select<T extends string>({ label, value, options, onChange, plac
         accessibilityLabel={label ?? placeholder}
         className={`min-h-10 flex-row items-center justify-between gap-2 rounded-xs border border-line bg-white px-3 py-2 web:hover:bg-surface ${compact ? '' : 'w-full'}`}
       >
-        <Text numberOfLines={1} className={`flex-shrink font-sans text-[13px] ${current ? 'text-ink' : 'text-ink-subtle'}`}>
+        <Text numberOfLines={1} className={`flex-shrink font-sans text-xs ${current ? 'text-ink' : 'text-ink-subtle'}`}>
           {current?.label ?? placeholder}
         </Text>
         <ChevronDown size={14} color={colors.inkSubtle} />
@@ -48,11 +48,11 @@ export function Select<T extends string>({ label, value, options, onChange, plac
                   onChange(o.value);
                   setOpen(false);
                 }}
-                className={`min-h-11 flex-row items-center gap-2 rounded-xs border p-2.5 ${selected ? 'border-ink bg-surface' : 'border-line bg-white web:hover:bg-surface'}`}
+                className={`min-h-11 flex-row items-center gap-2 rounded-xs border p-2.5 ${selected ? 'border-primary bg-surface-alt' : 'border-line bg-white web:hover:bg-surface'}`}
               >
                 <View className="flex-1">
-                  <Text className="font-sans-medium text-[13px] text-ink">{o.label}</Text>
-                  {o.description ? <Text className="font-sans text-xs text-ink-subtle">{o.description}</Text> : null}
+                  <Text className="font-sans-semibold text-xs text-ink">{o.label}</Text>
+                  {o.description ? <Text className="font-mono text-[11px] text-ink-subtle">{o.description}</Text> : null}
                 </View>
                 {selected ? <Check size={16} color={colors.primary} /> : null}
               </Pressable>

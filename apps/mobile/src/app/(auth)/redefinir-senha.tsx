@@ -1,9 +1,9 @@
 import { router } from 'expo-router';
-import { AlertCircle, CheckCircle2 } from 'lucide-react-native';
+import { AlertCircle, CheckCircle2, KeyRound } from 'lucide-react-native';
 import { useState } from 'react';
 import { Text, View } from 'react-native';
 
-import { AuthCard, AuthShell, BackLink, BrandMark } from '@/components/layout/AuthShell';
+import { AuthCard, AuthShell, BackLink } from '@/components/layout/AuthShell';
 import { Button } from '@/components/ui/Button';
 import { Callout } from '@/components/ui/Card';
 import { TextField } from '@/components/ui/Field';
@@ -30,33 +30,33 @@ export default function ResetPasswordScreen() {
   return (
     <AuthShell
       maxWidth={420}
-      headerLeft={<BackLink label="Cancelar" onPress={() => router.replace('/login')} />}
-      headerRight={<BrandMark showName={false} />}
-      footer={<Text className="text-center font-sans text-xs text-ink-subtle">Ao trocar a senha, todas as sessões abertas são encerradas.</Text>}
+      headerLeft={<BackLink label="Cancelar e Retornar" onPress={() => router.replace('/login')} />}
+      headerRight={<Text className="hidden font-mono text-xs text-ink-subtle sm:flex">NOVA SENHA DE ACESSO</Text>}
+      footer={<Text className="text-center font-sans text-xs text-ink-subtle">Segmenta Studio · Ao redefinir, todas as sessões abertas são encerradas</Text>}
     >
-      <AuthCard title="Nova senha" subtitle="Escolha a senha que você vai usar para entrar.">
+      <AuthCard icon={KeyRound} title="Definir Nova Senha" subtitle="Crie uma senha forte de acordo com os requisitos institucionais de segurança.">
         {error ? (
           <Callout tone="danger" icon={AlertCircle}>
             {error}
           </Callout>
         ) : null}
         {done ? (
-          <Callout tone="success" icon={CheckCircle2} title="Senha alterada">
+          <Callout tone="success" icon={CheckCircle2} title="Senha atualizada com sucesso!">
             <View className="gap-3">
-              <Text className="font-sans text-xs text-[#2f6b3a]">Entre de novo com a senha nova.</Text>
-              <Button label="Ir para o login" size="sm" onPress={() => router.replace('/login')} />
+              <Text className="font-sans text-[11px] text-emerald-700">Entre novamente com a nova senha.</Text>
+              <Button label="Ir para a Tela de Login" size="sm" onPress={() => router.replace('/login')} />
             </View>
           </Callout>
         ) : (
           <>
-            <TextField label="Nova senha" value={password} onChangeText={setPassword} placeholder="Mínimo 8 caracteres" secureTextEntry autoComplete="new-password" textContentType="newPassword" />
-            <TextField label="Repita a senha" value={confirm} onChangeText={setConfirm} secureTextEntry autoComplete="new-password" onSubmitEditing={submit} />
+            <TextField label="Nova senha de acesso" value={password} onChangeText={setPassword} placeholder="Mínimo 8 caracteres" secureTextEntry autoComplete="new-password" textContentType="newPassword" />
+            <TextField label="Confirmação da nova senha" value={confirm} onChangeText={setConfirm} placeholder="Repita a nova senha" secureTextEntry autoComplete="new-password" onSubmitEditing={submit} />
             <View className="gap-1 rounded-xs bg-surface-alt p-2.5">
-              <Text className="font-sans-medium text-xs text-ink">A senha precisa ter:</Text>
-              <Text className="font-sans text-xs text-ink-muted">• pelo menos 8 caracteres;</Text>
-              <Text className="font-sans text-xs text-ink-muted">• uma letra maiúscula e um número.</Text>
+              <Text className="font-sans-semibold text-[11px] text-primary">Requisitos da senha:</Text>
+              <Text className="font-sans text-[11px] text-ink-muted">• Mínimo de 8 caracteres</Text>
+              <Text className="font-sans text-[11px] text-ink-muted">• Ao menos uma letra maiúscula e um número</Text>
             </View>
-            <Button label="Salvar senha" onPress={submit} />
+            <Button label="Salvar Nova Senha & Concluir" onPress={submit} />
           </>
         )}
       </AuthCard>

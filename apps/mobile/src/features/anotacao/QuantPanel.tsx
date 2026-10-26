@@ -1,40 +1,38 @@
-import { History, Sparkles } from 'lucide-react-native';
+import { CheckCircle2, FileText, History, Sparkles } from 'lucide-react-native';
 import { Pressable, Text, View } from 'react-native';
 
 import { TextField } from '@/components/ui/Field';
 import type { SaveStatus } from '@/state/editorStore';
 import { colors } from '@/theme/colors';
 import type { MarkLabel } from '@/types';
+import { formatKi67, getKi67Stratification } from '@/utils/ki67';
 
-export function SaveIndicator({ status, version, offline }: { status: SaveStatus; version: number; offline: boolean }) {
-  const text = status === 'saved' ? `Salvo · versão ${version}` : status === 'saving' ? 'Salvando…' : offline ? 'Não salvo · sem conexão' : 'Não salvo';
-  const dot = status === 'saved' ? colors.success : status === 'saving' ? colors.warning : colors.danger;
+/** Faixas de St. Gallen como badges do NativeWind (as classes do protótipo usam a mesma paleta). */
+export function StratBadge({ index }: { index: number | null }) {
+  const s = getKi67Stratification(index);
   return (
-    <View accessibilityLiveRegion="polite" className="flex-row items-center gap-1.5">
-      <View style={{ backgroundColor: dot }} className="h-1.5 w-1.5 rounded-full" />
-      <Text className="font-sans text-xs text-ink-muted">{text}</Text>
+    <View className={`self-start rounded-xs border px-1.5 py-0.5 ${s.badgeClass.split(' ').filter((c) => c.startsWith('bg-') || c.startsWith('border-')).join(' ')}`}>
+      <Text className={`font-mono-bold text-[10px] ${s.badgeClass.split(' ').find((c) => c.startsWith('text-'))}`}>{s.label}</Text>
     </View>
   );
 }
 
-export const CLASSES: { label: MarkLabel; name: string; key: string; color: string }[] = [
-  { label: 'reagente', name: 'Reagente', key: '1', color: colors.dab },
-  { label: 'nao_reagente', name: 'Não reagente', key: '2', color: colors.hema },
-];
-
-/** Marca da classe: cheia para reagente, só contorno para não reagente (igual ao canvas). */
-export function ClassSwatch({ label, size = 10 }: { label: MarkLabel; size?: number }) {
-  const reagent = label === 'reagente';
+export function SaveIndicator({ status, version, offline }: { status: SaveStatus; version: number; offline: boolean }) {
+  const style =
+    status === 'saved' ? 'bg-emerald-100 text-emerald-800' : status === 'saving' ? 'bg-amber-100 text-amber-800' : 'bg-rose-100 text-rose-800';
+  const [bg, fg] = style.split(' ');
+  const text = status === 'saved' ? `Salvo · v${version}` : status === 'saving' ? 'Salvando...' : offline ? 'Não salvo · offline' : 'Não salvo';
   return (
-    <View
-      style={{ width: size, height: size, borderColor: reagent ? colors.dab : colors.hema, backgroundColor: reagent ? colors.dab : 'transparent' }}
-      className="rounded-full border-2"
-    />
+    <View accessibilityLiveRegion="polite" className={`flex-row items-center gap-1 rounded-xs px-2 py-0.5 ${bg}`}>
+      <View className={`h-1.5 w-1.5 rounded-full ${status === 'saved' ? 'bg-emerald-600' : status === 'saving' ? 'bg-amber-600' : 'bg-rose-600'}`} />
+      <Text className={`font-mono-bold text-[10px] ${fg}`}>{text}</Text>
+    </View>
   );
 }
 
 interface QuantPanelProps {
   counts: { reagents: number; nonReagents: number; total: number };
+  ki67: number | null;
   activeLabel: MarkLabel;
   onLabel: (label: MarkLabel) => void;
   onPreAnnotate: () => void;
@@ -45,54 +43,103 @@ interface QuantPanelProps {
   readOnly?: boolean;
 }
 
-/** Painel da anotação: classe ativa com a contagem de cada uma, pré-marcação e observação. */
-export function QuantPanel({ counts, activeLabel, onLabel, onPreAnnotate, observation, onObservation, activeVersion, onHistory, readOnly }: QuantPanelProps) {
+/** Painel de quantificação Ki-67 (índice, seletor de label, pré-marcação e observação). */
+export function QuantPanel({ counts, ki67, activeLabel, onLabel, onPreAnnotate, observation, onObservation, activeVersion, onHistory, readOnly }: QuantPanelProps) {
+  const pct = (n: number) => (counts.total > 0 ? `${((n / counts.total) * 100).toFixed(1)}%` : '0%');
   return (
-    <View className="gap-6">
-      <View className="gap-2">
-        <View className="flex-row items-center justify-between">
-          <Text className="font-sans-medium text-[13px] text-ink">Classe</Text>
-          <Text className="font-sans text-xs text-ink-subtle">teclas 1 e 2</Text>
+    <View className="gap-4">
+      <View className="gap-2 rounded-xs border border-line bg-surface-alt p-3.5" accessibilityLiveRegion="polite">
+        <View className="flex-row flex-wrap items-center justify-between gap-1">
+          <Text className="font-mono-bold text-[11px] uppercase text-ink-subtle">Índice Ki-67 calculado</Text>
+          <StratBadge index={ki67} />
         </View>
-        <View accessibilityRole="radiogroup" className="overflow-hidden rounded-xs border border-line">
-          {CLASSES.map((c, i) => {
-            const active = activeLabel === c.label;
-            const n = c.label === 'reagente' ? counts.reagents : counts.nonReagents;
-            return (
-              <Pressable
-                key={c.label}
-                onPress={() => onLabel(c.label)}
-                accessibilityRole="radio"
-                accessibilityState={{ selected: active }}
-                accessibilityLabel={`${c.name}: ${n} marcados`}
-                className={`min-h-12 flex-row items-center gap-3 px-3 ${i > 0 ? 'border-t border-line' : ''} ${active ? 'bg-surface' : 'bg-white web:hover:bg-surface'}`}
-              >
-                <View style={{ backgroundColor: active ? c.color : 'transparent' }} className="h-6 w-0.5" />
-                <ClassSwatch label={c.label} size={12} />
-                <Text className={`flex-1 text-[13px] ${active ? 'font-sans-medium text-ink' : 'font-sans text-ink-muted'}`}>{c.name}</Text>
-                <Text className="font-mono text-xs text-ink-subtle">{c.key}</Text>
-                <Text accessibilityLiveRegion="polite" className="w-14 text-right font-mono text-lg text-ink">{n}</Text>
-              </Pressable>
-            );
-          })}
-          <View className="flex-row items-center justify-between border-t border-line bg-surface px-3 py-2">
-            <Text className="font-sans text-[13px] text-ink-muted">Total marcado</Text>
-            <Text className="font-mono text-[13px] text-ink">{counts.total}</Text>
+        <View className="flex-row items-baseline gap-2">
+          <Text accessibilityLabel={`Índice Ki-67 ${formatKi67(ki67)}`} className="font-mono-bold text-3xl tracking-tight text-primary">{formatKi67(ki67)}</Text>
+          <Text className="font-sans text-xs text-ink-subtle">Índice proliferativo</Text>
+        </View>
+        <View className="items-center rounded-xs border border-line bg-white p-2">
+          <Text className="font-mono text-[11px] text-ink-muted">
+            Fórmula: <Text className="font-mono-bold text-primary">[Reagentes / Total] × 100</Text>
+          </Text>
+        </View>
+        <View className="mt-1 gap-1">
+          <View className="flex-row justify-between">
+            <Text className="font-mono text-[10px] text-ink-subtle">Baixo (&lt;10%)</Text>
+            <Text className="font-mono text-[10px] text-ink-subtle">Interm. (10-20%)</Text>
+            <Text className="font-mono-bold text-[10px] text-dab">Alto (&gt;20%)</Text>
+          </View>
+          <View className="h-2 flex-row overflow-hidden rounded-full bg-slate-200">
+            <View className="w-[10%] bg-emerald-500" />
+            <View className="w-[10%] bg-amber-500" />
+            <View className="w-[80%] bg-dab" />
           </View>
         </View>
       </View>
 
+      <View className="gap-1.5">
+        <View className="flex-row items-center justify-between">
+          <Text className="font-sans-semibold text-xs text-ink">Seletor de rótulo ativo:</Text>
+          <Text className="font-mono text-[10px] text-ink-subtle">Atalhos [1] e [2]</Text>
+        </View>
+        <View className="flex-row gap-2">
+          {(['reagente', 'nao_reagente'] as const).map((label) => {
+            const active = activeLabel === label;
+            const isR = label === 'reagente';
+            return (
+              <Pressable
+                key={label}
+                onPress={() => onLabel(label)}
+                accessibilityRole="radio"
+                accessibilityState={{ selected: active }}
+                accessibilityLabel={isR ? 'Label reagente' : 'Label não reagente'}
+                className={`flex-1 gap-2 rounded-xs p-2.5 ${active ? (isR ? 'border-2 border-dab bg-warn-soft' : 'border-2 border-hema bg-hema-soft') : 'border border-line bg-white'}`}
+              >
+                <View className="flex-row items-center justify-between">
+                  <View className="flex-row items-center gap-1.5">
+                    <View className={`h-2.5 w-2.5 rounded-full ${isR ? 'bg-dab' : 'border border-hema bg-hema-soft'}`} />
+                    <Text className={`font-sans-bold text-xs ${isR ? 'text-warn' : 'text-sky-700'}`}>{isR ? 'Reagente (DAB)' : 'Não Reagente'}</Text>
+                  </View>
+                  <Text className={`rounded-xs px-1 font-mono text-[10px] text-white ${isR ? 'bg-dab' : 'bg-hema'}`}>[{isR ? 1 : 2}]</Text>
+                </View>
+                <View className="flex-row items-baseline justify-between">
+                  <Text className={`font-mono-bold text-lg ${isR ? 'text-warn' : 'text-sky-700'}`}>{isR ? counts.reagents : counts.nonReagents}</Text>
+                  <Text className={`font-mono text-xs ${isR ? 'text-warn' : 'text-sky-700'}`}>{pct(isR ? counts.reagents : counts.nonReagents)}</Text>
+                </View>
+              </Pressable>
+            );
+          })}
+        </View>
+      </View>
+
       {!readOnly ? (
-        <Pressable onPress={onPreAnnotate} accessibilityRole="button" className="min-h-10 flex-row items-center gap-2 self-start rounded-xs border border-line px-3 web:hover:bg-surface">
-          <Sparkles size={14} color={colors.inkMuted} />
-          <Text className="font-sans text-[13px] text-ink">Sugerir não reagentes</Text>
+        <Pressable onPress={onPreAnnotate} className="min-h-10 flex-row items-center justify-center gap-2 rounded-xs border border-hema bg-hema-soft px-3 web:hover:bg-sky-200">
+          <Sparkles size={16} color={colors.hema} />
+          <Text className="font-sans-semibold text-xs text-sky-700">Pré-marcar não reagentes (automático)</Text>
         </Pressable>
       ) : null}
 
+      <View className="flex-row items-center justify-between rounded-xs border border-line bg-white p-3">
+        <View>
+          <Text className="font-sans text-[11px] text-ink-subtle">Total de núcleos marcados</Text>
+          <Text className="font-mono-bold text-lg text-ink">
+            {counts.total} <Text className="font-sans text-[10px] text-ink-subtle">/ meta: 500 células</Text>
+          </Text>
+        </View>
+        <View className={`flex-row items-center gap-1 rounded-xs px-2 py-0.5 ${counts.total >= 500 ? 'bg-emerald-100' : 'bg-amber-100'}`}>
+          <CheckCircle2 size={14} color={counts.total >= 500 ? '#047857' : '#b45309'} />
+          <Text className={`font-sans-semibold text-[11px] ${counts.total >= 500 ? 'text-emerald-800' : 'text-amber-900'}`}>
+            {counts.total >= 500 ? 'Amostragem suficiente' : 'Contagem parcial'}
+          </Text>
+        </View>
+      </View>
+
       <View>
-        <View className="mb-1.5 flex-row items-center justify-between">
-          <Text className="font-sans-medium text-[13px] text-ink">Observação</Text>
-          <Text className={`font-mono text-[11px] ${observation.length > 1900 ? 'text-danger' : 'text-ink-subtle'}`}>{observation.length}/2000</Text>
+        <View className="mb-1 flex-row items-center justify-between">
+          <View className="flex-row items-center gap-1">
+            <FileText size={14} color={colors.primary} />
+            <Text className="font-sans-semibold text-xs text-ink">Observação clínica:</Text>
+          </View>
+          <Text className={`font-mono text-[10px] ${observation.length > 1900 ? 'font-mono-bold text-danger' : 'text-ink-subtle'}`}>{observation.length} / 2.000</Text>
         </View>
         <TextField
           multiline
@@ -100,18 +147,18 @@ export function QuantPanel({ counts, activeLabel, onLabel, onPreAnnotate, observ
           editable={!readOnly}
           value={observation}
           onChangeText={onObservation}
-          placeholder="Campo escolhido, qualidade da lâmina, o que foi excluído da contagem…"
-          accessibilityLabel="Observação"
+          placeholder="Notas sobre o hotspot, estroma, qualidade da lâmina ou exclusões..."
+          accessibilityLabel="Observação clínica"
         />
       </View>
 
-      <Pressable onPress={onHistory} className="min-h-11 flex-row items-center justify-between border-t border-line pt-3" accessibilityRole="button">
-        <View className="flex-row items-center gap-1.5">
-          <History size={14} color={colors.inkMuted} />
-          <Text className="font-sans text-[13px] text-ink underline">Versões salvas</Text>
-        </View>
-        <Text className="font-mono text-xs text-ink-subtle">atual: {activeVersion}</Text>
-      </Pressable>
+      <View className="flex-row items-center justify-between">
+        <Pressable onPress={onHistory} className="min-h-11 flex-row items-center gap-1.5" accessibilityRole="button">
+          <History size={14} color={colors.primary} />
+          <Text className="font-sans-semibold text-xs text-primary">Histórico de versões (ver e restaurar)</Text>
+        </Pressable>
+        <Text className="font-mono text-[11px] text-ink-subtle">v{activeVersion} ativa</Text>
+      </View>
     </View>
   );
 }

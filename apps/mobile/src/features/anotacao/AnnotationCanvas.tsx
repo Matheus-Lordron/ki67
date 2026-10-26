@@ -328,7 +328,7 @@ export const AnnotationCanvas = forwardRef<CanvasHandle, Props>(function Annotat
     const iy = loupe.y - rect.top;
     const top = loupe.y - LOUPE - 30 < 0 ? loupe.y + 30 : loupe.y - LOUPE - 30;
     loupeView = (
-      <View pointerEvents="none" style={{ left: loupe.x - LOUPE / 2, top, width: LOUPE, height: LOUPE }} className="absolute z-40 overflow-hidden rounded-full border-2 border-white bg-[#2a2b2e] shadow-lg">
+      <View pointerEvents="none" style={{ left: loupe.x - LOUPE / 2, top, width: LOUPE, height: LOUPE }} className="absolute z-40 overflow-hidden rounded-full border-2 border-white bg-slate-900 shadow-xl">
         <Image
           source={{ uri }}
           contentFit="fill"
@@ -354,7 +354,7 @@ export const AnnotationCanvas = forwardRef<CanvasHandle, Props>(function Annotat
         setSize({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height });
         measure();
       }}
-      className={`flex-1 overflow-hidden ${darkBackground ? 'bg-[#2a2b2e]' : 'bg-[#e9e8e4]'} web:cursor-crosshair`}
+      className={`flex-1 overflow-hidden ${darkBackground ? 'bg-slate-900' : 'bg-slate-100'} web:cursor-crosshair`}
       accessibilityLabel={`Lâmina em anotação. ${marks.length} marcações.`}
       {...responder.panHandlers}
     >

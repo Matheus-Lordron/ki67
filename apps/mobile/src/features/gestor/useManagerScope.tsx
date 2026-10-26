@@ -1,8 +1,10 @@
+import { FolderKanban } from 'lucide-react-native';
 import { useMemo } from 'react';
 import { Text, View } from 'react-native';
 
 import { Select } from '@/components/ui/Select';
 import { useAppStore } from '@/state/appStore';
+import { colors } from '@/theme/colors';
 
 /**
  * Recorte do gestor: só os projetos que ele gerencia (RF-09) e, dentro do
@@ -34,16 +36,22 @@ export function ProjectPicker() {
   const setActiveProjectId = useAppStore((s) => s.setActiveProjectId);
   if (!project) {
     return (
-      <Text className="font-sans text-[13px] text-warn">Você ainda não é gestor de nenhum projeto. Peça ao administrador para incluir você.</Text>
+      <View className="flex-row items-center gap-2 rounded-xs border border-amber-300 bg-amber-50 p-3">
+        <FolderKanban size={16} color="#b45309" />
+        <Text className="font-sans text-xs text-amber-900">Você ainda não é gestor de nenhum projeto. Peça ao administrador para designá-lo.</Text>
+      </View>
     );
   }
   return (
     <View className="flex-row flex-wrap items-center gap-2">
-      <Text className="font-sans text-[13px] text-ink-muted">Projeto</Text>
+      <FolderKanban size={16} color={colors.primary} />
+      <Text className="font-sans-semibold text-xs text-ink">Projeto:</Text>
       {managed.length > 1 ? (
         <Select compact value={project.id} onChange={setActiveProjectId} options={managed.map((p) => ({ value: p.id, label: p.name, description: p.code }))} />
       ) : (
-        <Text className="font-sans-medium text-[13px] text-ink">{project.name}</Text>
+        <Text className="font-sans text-xs text-primary">
+          {project.name} <Text className="font-mono text-[11px] text-ink-subtle">({project.code})</Text>
+        </Text>
       )}
     </View>
   );

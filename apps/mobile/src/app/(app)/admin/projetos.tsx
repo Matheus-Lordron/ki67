@@ -1,15 +1,16 @@
-import { Plus } from 'lucide-react-native';
+import { FolderKanban, Plus, UserCheck } from 'lucide-react-native';
 import { useState } from 'react';
 import { Text, View } from 'react-native';
 
 import { Button } from '@/components/ui/Button';
-import { Badge, Card, KeyValue, PageHeader } from '@/components/ui/Card';
+import { Badge, Card, PageHeader } from '@/components/ui/Card';
 import { Dialog } from '@/components/ui/Dialog';
 import { TextField } from '@/components/ui/Field';
 import { Grid } from '@/components/ui/Grid';
 import { Screen } from '@/components/ui/Screen';
 import { Select } from '@/components/ui/Select';
 import { useAppStore } from '@/state/appStore';
+import { colors } from '@/theme/colors';
 
 // Projetos e gestores (RF-09): só o admin cria projetos e designa o gestor.
 export default function ProjectsScreen() {
@@ -42,25 +43,32 @@ export default function ProjectsScreen() {
   return (
     <Screen>
       <PageHeader
-        title="Projetos"
-        description="Cada projeto tem o nome que você escolher e um gestor responsável."
-        actions={<Button label="Novo projeto" icon={Plus} onPress={() => setOpen(true)} />}
+        title="Projetos & Estudos"
+        badge="GOVERNANÇA"
+        description="Crie os projetos de pesquisa e designe o gestor responsável por cada um."
+        actions={<Button label="Criar novo projeto" icon={Plus} onPress={() => setOpen(true)} />}
       />
       <Grid cols={{ base: 1, md: 2 }}>
         {projects.map((p) => (
-          <Card key={p.id} className="h-full gap-4 p-4">
-            <View className="gap-1">
-              <View className="flex-row items-center justify-between gap-2">
-                <Text className="font-sans-semibold text-[15px] text-ink">{p.name}</Text>
-                {p.status !== 'ativo' ? <Badge label="Encerrado" tone="neutral" /> : null}
+          <Card key={p.id} className="h-full justify-between">
+            <View>
+              <View className="mb-2 flex-row items-center justify-between">
+                <Badge label={p.code} />
+                <Badge label={p.status.toUpperCase()} tone={p.status === 'ativo' ? 'success' : 'neutral'} />
               </View>
-              <Text className="font-sans text-[13px] leading-5 text-ink-muted">{p.description || 'Sem descrição.'}</Text>
+              <Text className="mb-1 font-sans-bold text-base text-ink">{p.name}</Text>
+              <Text className="mb-4 font-sans text-xs leading-5 text-ink-muted">{p.description || 'Sem descrição.'}</Text>
+              <View className="mb-3 flex-row items-center justify-between rounded-xs border border-line bg-surface-alt p-3">
+                <View className="flex-row items-center gap-2">
+                  <UserCheck size={16} color={colors.primary} />
+                  <Text className="font-sans text-xs text-ink-subtle">Gestor designado:</Text>
+                </View>
+                <Text className="font-sans-semibold text-xs text-primary">{users.find((u) => u.id === p.managerId)?.name ?? p.managerName}</Text>
+              </View>
             </View>
-            <View className="gap-1.5 border-t border-line pt-3">
-              <KeyValue label="Gestor" value={<Text className="font-sans text-[13px] text-ink">{users.find((u) => u.id === p.managerId)?.name ?? p.managerName}</Text>} />
-              <KeyValue label="Lotes" value={batches.filter((b) => b.projectId === p.id).length} />
-              <KeyValue label="Código" value={p.code} />
-              <KeyValue label="Criado em" value={new Date(p.createdAt).toLocaleDateString('pt-BR')} />
+            <View className="flex-row justify-between border-t border-surface-alt pt-3">
+              <Text className="font-mono text-xs text-ink-subtle">{batches.filter((b) => b.projectId === p.id).length} lotes associados</Text>
+              <Text className="font-mono text-xs text-ink-subtle">Criado em {new Date(p.createdAt).toLocaleDateString('pt-BR')}</Text>
             </View>
           </Card>
         ))}
@@ -69,19 +77,21 @@ export default function ProjectsScreen() {
       <Dialog
         visible={open}
         onClose={() => setOpen(false)}
-        title="Novo projeto"
+        title="Criar novo projeto"
+        subtitle="Título do estudo e gestor responsável"
+        icon={FolderKanban}
         footer={
           <>
             <Button label="Cancelar" variant="outline" onPress={() => setOpen(false)} />
-            <Button label="Criar projeto" onPress={submit} disabled={!name.trim() || !chosen} />
+            <Button label="Criar e designar" onPress={submit} disabled={!name.trim() || !chosen} />
           </>
         }
       >
-        <TextField label="Nome" value={name} onChangeText={setName} placeholder="Ex.: Ki67" />
-        <TextField label="Descrição" hint="opcional" value={description} onChangeText={setDescription} multiline placeholder="Objetivo, material, critérios de contagem…" />
+        <TextField label="Nome do projeto *" value={name} onChangeText={setName} placeholder="Ex.: Estudo multicêntrico de câncer colorretal Ki-67" />
+        <TextField label="Descrição e protocolo" value={description} onChangeText={setDescription} multiline placeholder="Objetivos, amostragem, critérios de hotspot..." />
         <View>
-          <Select label="Gestor" value={chosen} onChange={setManagerId} options={managers.map((m) => ({ value: m.id, label: m.name, description: m.email }))} />
-          <Text className="mt-1 font-sans text-xs text-ink-subtle">Aparecem só usuários ativos com o papel Gestor. O gestor não anota imagens do próprio projeto.</Text>
+          <Select label="Designar gestor responsável *" value={chosen} onChange={setManagerId} options={managers.map((m) => ({ value: m.id, label: m.name, description: m.email }))} />
+          <Text className="mt-1 font-sans text-[10px] text-ink-subtle">Só usuários ativos com o papel Gestor podem ser designados. O gestor não pode avaliar no próprio projeto (RN-07).</Text>
         </View>
       </Dialog>
     </Screen>

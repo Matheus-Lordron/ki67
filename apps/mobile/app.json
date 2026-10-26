@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Segmenta",
+    "name": "Segmenta Studio Ki-67",
     "slug": "ki67",
     "version": "0.1.0",
     "orientation": "default",
@@ -32,15 +32,14 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#f5f5f2",
+          "backgroundColor": "#f8f9ff",
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 76
         }
       ],
       "expo-secure-store",
       "expo-font",
-      "expo-sharing",
-      "expo-asset"
+      "expo-sharing"
     ],
     "experiments": {
       "typedRoutes": false,

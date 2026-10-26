@@ -1,6 +1,6 @@
 # 06 · Plano de execução da refatoração
 
-> **Documento vivo.** Versão 0.2, de 21/10/2026. O [05 · Plano de refatoração](05-plano-de-refatoracao.md) diz **o que** muda e **por quê** (diagnóstico e tarefas R-01 a R-30). Este documento diz **em que ordem**, **com quais regras de negócio**, **em quantos pull requests** e **quando cada etapa está pronta**. Quando uma data ou uma regra mudar, este arquivo muda no mesmo pull request.
+> **Documento vivo.** Versão 0.3, de 26/10/2026. O [05 · Plano de refatoração](05-plano-de-refatoracao.md) diz **o que** muda e **por quê** (diagnóstico e tarefas R-01 a R-30). Este documento diz **em que ordem**, **com quais regras de negócio**, **em quantos pull requests** e **quando cada etapa está pronta**. Quando uma data ou uma regra mudar, este arquivo muda no mesmo pull request.
 
 **Neste documento:** [1. Ponto de partida](#1-ponto-de-partida) · [2. Regras de negócio](#2-regras-de-negócio-consolidadas) · [3. Organização do trabalho](#3-organização-do-trabalho) · [4. Ondas](#4-ondas-de-execução) · [5. Dependências](#5-dependências-entre-tarefas) · [6. Linha de corte](#6-linha-de-corte-para-o-laboratório) · [7. Autorizações](#7-portões-de-autorização) · [8. Acompanhamento](#8-acompanhamento) · [9. Riscos](#9-riscos-de-execução)
 
@@ -11,7 +11,7 @@
 | Onde | O que existe |
 | --- | --- |
 | `main` | MVP completo em modo demonstração: banco (`supabase/schema.sql`), Edge Functions e telas dos quatro papéis. Sem CI, com 3 arquivos de teste unitário |
-| Branch `Fernando` (ainda sem pull request) | Plano de refatoração ([05](05-plano-de-refatoracao.md)); novo visual "Segmenta" sem índice nas telas; imagens de demonstração de bases públicas; Testing Library e 6 testes novos |
+| Branch `Fernando` (ainda sem pull request) | Plano de refatoração ([05](05-plano-de-refatoracao.md)) e este plano. O app (`apps/mobile`) está igual ao da `main`: o novo visual "Segmenta" e as imagens de demonstração foram desfeitos, porque as telas não são responsabilidade desta branch |
 | Ambientes reais | Projeto Supabase e bucket R2 existem, mas **nada deste plano é aplicado neles sem autorização** ([seção 7](#7-portões-de-autorização)) |
 
 ## 2. Regras de negócio consolidadas
@@ -93,7 +93,7 @@ Nenhum código. Sai daqui a autorização para mudar os requisitos.
 | --- | --- | --- |
 | E-01 | Apresentar ao grupo (e ao professor, se preciso) as mudanças de requisito: índice fora das telas (RN-15), versões só no Salvar (RN-14), reavaliação pedida ao gestor (RN-04), projetos configuráveis (RN-10 a RN-13) | Frente C |
 | E-02 | PR de documentação: atualizar em [01](01-visao-e-requisitos.md) os RF-19, RF-21, RF-31, RF-33, RF-40, RF-41, RF-42 e as regras da [seção 2](#2-regras-de-negócio-consolidadas); levar "labels configuráveis" e "reabertura" da Fase 2 para agora; ajustar o cronograma do [03](03-planejamento.md) | Frente C |
-| E-03 | PR da branch `Fernando` (plano, novo visual e imagens de demonstração), revisado por outro integrante | Fernando |
+| E-03 | PR da branch `Fernando` (planos 05 e 06), revisado por outro integrante | Fernando |
 | E-04 | O dono do repositório ativa a proteção da `main`: 1 aprovação e CI obrigatório | Matheus |
 | E-05 | Cada integrante: instalar Docker e Supabase CLI para rodar o banco local; tirar segredos do servidor de `apps/mobile/.env` e deixá-los só em `supabase/functions/.env` | Todos |
 
@@ -240,3 +240,4 @@ Até cada portão, tudo roda no Supabase local (Docker) e com o R2 simulado nos 
 | --- | --- | --- |
 | 0.1 | 21/10/2026 | Regras de negócio consolidadas (RN-01 a RN-15), organização em três frentes, sete ondas até o Laboratório, dependências, linha de corte e portões de autorização. |
 | 0.2 | 21/10/2026 | Um único gestor por projeto: R-26 cancelada, troca de gestor no R-25 e regras RN-01, RN-07 e RN-09 ajustadas. |
+| 0.3 | 26/10/2026 | O app da branch `Fernando` volta a ser igual ao da `main`: o novo visual e as imagens de demonstração saem do E-03. |

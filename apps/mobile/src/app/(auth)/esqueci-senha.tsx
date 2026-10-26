@@ -1,13 +1,12 @@
 import { router } from 'expo-router';
-import { CheckCircle2, Mail } from 'lucide-react-native';
+import { CheckCircle2, KeyRound, Mail } from 'lucide-react-native';
 import { useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 
-import { AuthCard, AuthShell, BackLink, BrandMark } from '@/components/layout/AuthShell';
+import { AuthCard, AuthShell, BackLink } from '@/components/layout/AuthShell';
 import { Button } from '@/components/ui/Button';
 import { Callout } from '@/components/ui/Card';
 import { TextField } from '@/components/ui/Field';
-import { isDemo } from '@/data/mode';
 import { useAppStore } from '@/state/appStore';
 
 export default function ForgotPasswordScreen() {
@@ -27,40 +26,40 @@ export default function ForgotPasswordScreen() {
   return (
     <AuthShell
       maxWidth={420}
-      headerLeft={<BackLink label="Voltar" onPress={() => router.replace('/login')} />}
-      headerRight={<BrandMark showName={false} />}
-      footer={<Text className="text-center font-sans text-xs text-ink-subtle">O link vale por 30 minutos e só pode ser usado uma vez.</Text>}
+      headerLeft={<BackLink label="Retornar ao Login" onPress={() => router.replace('/login')} />}
+      headerRight={<Text className="hidden font-mono text-xs text-ink-subtle sm:flex">RECUPERAÇÃO DE ACESSO</Text>}
+      footer={<Text className="text-center font-sans text-xs text-ink-subtle">Segmenta Studio · Segurança e rastreabilidade</Text>}
     >
-      <AuthCard title="Redefinir senha" subtitle="Informe o e-mail da sua conta. Enviaremos um link para criar uma senha nova.">
+      <AuthCard icon={KeyRound} title="Recuperar Senha" subtitle="Informe seu e-mail institucional para receber um link de uso único, válido por 30 minutos.">
         {sent ? (
-          <Callout tone="success" icon={CheckCircle2} title="Verifique seu e-mail">
+          <Callout tone="success" icon={CheckCircle2} title="Link de recuperação enviado">
             <View className="gap-3">
               {/* Mesma resposta para e-mail cadastrado ou não (RF-03) */}
-              <Text className="font-sans text-xs leading-5 text-[#2f6b3a]">
-                Se houver uma conta com {email}, o link chega em instantes.
+              <Text className="font-sans text-[11px] leading-4 text-emerald-700">
+                Se o e-mail {email} estiver cadastrado, você receberá as instruções em instantes.
               </Text>
-              {isDemo ? <Button label="Abrir o link (demonstração)" variant="outline" size="sm" onPress={() => router.push('/redefinir-senha')} /> : null}
+              <Button label="Simular clique no link recebido" size="sm" onPress={() => router.push('/redefinir-senha')} />
             </View>
           </Callout>
         ) : (
           <>
             <TextField
-              label="E-mail"
+              label="E-mail institucional cadastrado"
               icon={Mail}
               value={email}
               onChangeText={setEmail}
-              placeholder="nome@instituicao.org.br"
+              placeholder="patologista@instituto.org.br"
               keyboardType="email-address"
               autoCapitalize="none"
               autoComplete="email"
               onSubmitEditing={submit}
             />
-            <Button label="Enviar link" onPress={submit} loading={loading} disabled={!email.trim()} />
+            <Button label="Enviar Link de Redefinição" onPress={submit} loading={loading} disabled={!email.trim()} />
           </>
         )}
-        <View className="border-t border-line pt-3">
+        <View className="items-center border-t border-surface-alt pt-4">
           <Pressable onPress={() => router.replace('/login')} accessibilityRole="link" className="min-h-11 justify-center">
-            <Text className="font-sans text-[13px] text-ink-muted underline">Voltar para o login</Text>
+            <Text className="font-sans-semibold text-xs text-primary">Lembrou sua senha? Voltar ao login</Text>
           </Pressable>
         </View>
       </AuthCard>

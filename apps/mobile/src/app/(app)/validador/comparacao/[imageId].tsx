@@ -1,23 +1,23 @@
 import { Redirect, router, useLocalSearchParams } from 'expo-router';
-import { AlertTriangle, ArrowLeft, CheckCircle2, ZoomIn, ZoomOut } from 'lucide-react-native';
+import { AlertTriangle, ArrowLeft, CheckCircle2, FileCheck, Flame, Layers, ShieldCheck, ZoomIn, ZoomOut } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, Text, useWindowDimensions, View } from 'react-native';
 
 import { Button } from '@/components/ui/Button';
-import { Callout, KeyValue, Section } from '@/components/ui/Card';
+import { Badge, Card, Callout, KeyValue } from '@/components/ui/Card';
 import { Dialog } from '@/components/ui/Dialog';
-import { RadioRow, Segmented, TextField } from '@/components/ui/Field';
+import { RadioRow, TextField } from '@/components/ui/Field';
 import { Grid } from '@/components/ui/Grid';
 import { Screen } from '@/components/ui/Screen';
-import { ClassSwatch } from '@/features/anotacao/QuantPanel';
 import { SlideView } from '@/features/anotacao/SlideView';
 import { useImageUrl } from '@/features/anotacao/useImageUrl';
+import { iccLabel } from '@/features/validacao/comparison';
 import { useComparison } from '@/features/validacao/useValidation';
 import { useAppStore } from '@/state/appStore';
 import { colors } from '@/theme/colors';
+import { formatKi67 } from '@/utils/ki67';
 
-const fmt = (iso?: string) => (iso ? new Date(iso).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : '—');
-const avg = (list: number[]) => Math.round(list.reduce((s, n) => s + n, 0) / Math.max(1, list.length));
+const DELTA_LIMIT = 5; // p.p. — referência para o checklist
 
 export default function ComparisonScreen() {
   const { imageId } = useLocalSearchParams<{ imageId: string }>();
@@ -28,8 +28,9 @@ export default function ComparisonScreen() {
 
   const { data: cmp, loading, denied } = useComparison(imageId);
   const imageUri = useImageUrl(imageId, cmp?.image.imageUrl ?? '', cmp?.imageVersionId);
-  const [mode, setMode] = useState<'sobreposicao' | 'lado'>('sobreposicao');
+  const [sideBySide, setSideBySide] = useState(false);
   const [layers, setLayers] = useState<Record<string, boolean>>({});
+  const [heatmap, setHeatmap] = useState(false);
   const [zoom, setZoom] = useState(1);
   const [choice, setChoice] = useState('consenso');
   const [justification, setJustification] = useState('');
@@ -43,8 +44,8 @@ export default function ComparisonScreen() {
   if (loading) {
     return (
       <View className="flex-1 items-center justify-center gap-2">
-        <ActivityIndicator color={colors.ink} />
-        <Text className="font-sans text-[13px] text-ink-subtle">Carregando as análises…</Text>
+        <ActivityIndicator color={colors.primary} />
+        <Text className="font-mono text-xs text-ink-subtle">Carregando a comparação cega...</Text>
       </View>
     );
   }
@@ -53,26 +54,23 @@ export default function ComparisonScreen() {
     return <Redirect href="/validador" />;
   }
 
-  const { blind, metrics, spatialAgreementPct } = cmp;
+  const { blind, metrics, spatialAgreementPct, heat } = cmp;
   const image = { ...cmp.image, imageUrl: imageUri };
   const visible = (code: string) => layers[code] !== false;
   const result = cmp.result;
   const chosen = blind.find((b) => b.code === choice);
-  const consensus = { reagents: avg(blind.map((b) => b.reagents)), nonReagents: avg(blind.map((b) => b.nonReagents)) };
-  const decided = chosen ? { reagents: chosen.reagents, nonReagents: chosen.nonReagents } : consensus;
+  const chosenKi67 = chosen ? (chosen.ki67 ?? 0) : metrics.median;
 
   const confirm = async () => {
     setBusy(true);
-    // O banco ainda exige índice e métricas no fechamento (RF-32). A tela não os mostra,
-    // mas eles seguem calculados como antes até a refatoração do backend.
     const res = await submitConsensus({
       imageId: image.id,
-      adoptedAnalysisCode: chosen ? `Análise ${chosen.code} adotada` : 'Consenso (média das contagens)',
+      adoptedAnalysisCode: chosen ? `Análise ${chosen.code} adotada` : 'Consenso mediano',
       adoptedBlindCode: chosen?.code,
       justification,
-      consensusKi67: chosen ? (chosen.ki67 ?? 0) : metrics.median,
-      reagentsCount: decided.reagents,
-      nonReagentsCount: decided.nonReagents,
+      consensusKi67: chosenKi67,
+      reagentsCount: chosen ? chosen.reagents : Math.round(blind.reduce((s, b) => s + b.reagents, 0) / blind.length),
+      nonReagentsCount: chosen ? chosen.nonReagents : Math.round(blind.reduce((s, b) => s + b.nonReagents, 0) / blind.length),
       iccScore: metrics.iccEstimate,
       divergenceDeltaPP: metrics.deltaPP,
       spatialAgreementPct,
@@ -80,7 +78,7 @@ export default function ComparisonScreen() {
     setBusy(false);
     setConfirmOpen(false);
     if (res.ok) {
-      showToast('Resultado registrado. Ele não pode mais ser alterado.');
+      showToast('Resultado validado, selado e tornado imutável.');
       router.replace('/validador');
     } else {
       showToast(res.error);
@@ -89,197 +87,275 @@ export default function ComparisonScreen() {
 
   const openConfirm = () => {
     if (justification.trim().length < 15) {
-      showToast('Escreva a justificativa (pelo menos 15 caracteres).');
+      showToast('O parecer técnico é obrigatório (mínimo de 15 caracteres).');
       return;
     }
     setConfirmOpen(true);
   };
 
   const wide = width >= 1024;
-  const narrow = width < 640;
-  const numW = narrow ? 'w-16' : 'w-28';
 
   return (
-    <Screen maxWidth={1440}>
-      <View className="gap-3 border-b border-line pb-4">
-        <Pressable onPress={() => router.replace('/validador')} className="min-h-9 flex-row items-center gap-1.5 self-start">
-          <ArrowLeft size={16} color={colors.ink} />
-          <Text className="font-sans text-[13px] text-ink">Fila de validação</Text>
+    <Screen maxWidth={1600}>
+      <View className="flex-row flex-wrap items-center justify-between gap-2">
+        <Pressable onPress={() => router.replace('/validador')} className="min-h-11 flex-row items-center gap-1.5">
+          <ArrowLeft size={16} color={colors.primary} />
+          <Text className="font-sans-semibold text-xs text-primary">Voltar para a fila de validação</Text>
         </Pressable>
-        <View className="flex-row flex-wrap items-baseline gap-x-3 gap-y-1">
-          <Text accessibilityRole="header" className="font-mono text-xl text-ink">{image.code}</Text>
-          <Text className="font-sans text-[13px] text-ink-muted">{image.organ} · {image.batchName}</Text>
-        </View>
-        <Text className="font-sans text-[13px] text-ink-muted">
-          {blind.length} análises independentes. Os avaliadores aparecem só como letras.
-        </Text>
+        <Text className="font-mono text-xs text-ink-subtle">Lâmina: {image.code} · Amostragem {blind.length}x cega</Text>
       </View>
 
-      <Section title="Contagem por análise">
-        <View className="overflow-hidden rounded-xs border border-line bg-white">
-          <View className="flex-row border-b border-line bg-surface px-3 py-2">
-            <Text className="flex-1 font-sans-medium text-xs text-ink-muted">Análise</Text>
-            <View className={`${numW} flex-row items-center justify-end gap-1.5`}>{narrow ? null : <ClassSwatch label="reagente" size={9} />}<Text className="font-sans-medium text-xs text-ink-muted">{narrow ? 'Reag.' : 'Reagentes'}</Text></View>
-            <View className={`${numW} flex-row items-center justify-end gap-1.5`}>{narrow ? null : <ClassSwatch label="nao_reagente" size={9} />}<Text className="font-sans-medium text-xs text-ink-muted">Não reag.</Text></View>
-            <Text className="w-14 text-right font-sans-medium text-xs text-ink-muted">Total</Text>
-          </View>
-          {blind.map((an) => (
-            <View key={an.code} className="border-b border-line px-3 py-2.5">
-              <View className="flex-row items-start">
-                <View className="flex-1 flex-row flex-wrap items-baseline gap-x-2">
-                  <View style={{ backgroundColor: an.color }} className="h-2.5 w-2.5 rounded-full" />
-                  <Text className="font-sans-medium text-[13px] text-ink">Análise {an.code}</Text>
-                  <Text className="font-sans text-xs text-ink-subtle">versão {an.version} · {fmt(an.finalizedAt)}</Text>
-                </View>
-                <Text className={`${numW} text-right font-mono text-[13px] text-ink`}>{an.reagents}</Text>
-                <Text className={`${numW} text-right font-mono text-[13px] text-ink`}>{an.nonReagents}</Text>
-                <Text className="w-14 text-right font-mono text-[13px] text-ink">{an.total}</Text>
-              </View>
-              {an.observation ? <Text numberOfLines={2} className="ml-[18px] mt-1 font-sans text-xs text-ink-subtle">{an.observation}</Text> : null}
-            </View>
-          ))}
-        </View>
-      </Section>
-
-      <View className={`gap-8 ${wide ? 'flex-row items-start' : ''}`}>
-        <Section
-          title="Marcações sobre a imagem"
-          className={wide ? 'flex-[7]' : ''}
-          action={
-            <Segmented
-              value={mode}
-              onChange={setMode}
-              options={[
-                { value: 'sobreposicao', label: 'Sobrepostas' },
-                { value: 'lado', label: 'Lado a lado' },
-              ]}
-            />
-          }
-        >
+      <Card className="flex-row flex-wrap items-center justify-between gap-4 p-4 lg:p-5">
+        <View className="shrink gap-1">
           <View className="flex-row flex-wrap items-center gap-2">
+            <Text className="font-sans-bold text-xl text-primary">Comparação cega · Ki-67 nuclear</Text>
+            <Badge label={`Meta N=${image.requiredEvaluatorsCount} atingida`} />
+          </View>
+          <Text className="font-sans text-xs text-ink-muted">{image.batchName} — {image.organ}. Nomes dos avaliadores omitidos (protocolo cego).</Text>
+        </View>
+        <View className="flex-row flex-wrap gap-6">
+          <Metric label="Divergência máxima" value={`Δ ${metrics.deltaPP} p.p.`} tag={metrics.deltaPP < DELTA_LIMIT ? 'Dentro do limite' : 'Acima do limite'} ok={metrics.deltaPP < DELTA_LIMIT} />
+          <Metric label="Concordância espacial" value={`${spatialAgreementPct}%`} tag="tolerância 3,5%" ok={spatialAgreementPct >= 80} />
+          <Metric label="ICC estimado" value={metrics.iccEstimate.toFixed(2)} tag={iccLabel(metrics.iccEstimate)} ok={metrics.iccEstimate >= 0.75} />
+        </View>
+      </Card>
+
+      <View className="gap-2">
+        <View className="flex-row flex-wrap items-center justify-between gap-2">
+          <View className="flex-row items-center gap-2">
+            <Layers size={16} color={colors.primary} />
+            <Text className="font-sans-bold text-sm text-ink">Análises anonimizadas (sessões fechadas)</Text>
+          </View>
+          <Text className="font-mono text-xs text-ink-subtle">Cada análise selada com SHA-256</Text>
+        </View>
+        <Grid cols={{ base: 1, md: Math.min(3, blind.length), lg: Math.min(4, blind.length) }}>
+          {blind.map((an) => (
+            <Card key={an.code} className="h-full gap-2 p-4">
+              <View className="flex-row items-center justify-between border-b border-surface-alt pb-2">
+                <View className="flex-row items-center gap-2">
+                  <View style={{ backgroundColor: an.color }} className="h-6 w-6 items-center justify-center rounded-xs">
+                    <Text className="font-mono-bold text-xs text-white">{an.code}</Text>
+                  </View>
+                  <Text className="font-sans-bold text-xs text-ink">Análise {an.code} (anonimizada)</Text>
+                </View>
+                <Text className="rounded-xs bg-surface-alt px-1.5 py-0.5 font-mono text-[11px] text-primary">v{an.version} final</Text>
+              </View>
+              <View className="flex-row items-baseline justify-between">
+                <Text className="font-sans text-xs text-ink-subtle">Índice Ki-67:</Text>
+                <Text className="font-mono-bold text-2xl text-primary">{formatKi67(an.ki67)}</Text>
+              </View>
+              <View className="flex-row gap-2">
+                <View className="flex-1 flex-row items-center justify-between rounded-xs border border-amber-200 bg-warn-soft p-2">
+                  <Text className="font-sans-semibold text-[11px] text-warn">● Reagentes</Text>
+                  <Text className="font-mono-bold text-xs text-warn">{an.reagents}</Text>
+                </View>
+                <View className="flex-1 flex-row items-center justify-between rounded-xs border border-sky-200 bg-hema-soft p-2">
+                  <Text className="font-sans-semibold text-[11px] text-sky-700">○ Não reag.</Text>
+                  <Text className="font-mono-bold text-xs text-sky-700">{an.nonReagents}</Text>
+                </View>
+              </View>
+              <View className="relative h-28 overflow-hidden rounded-xs border border-line">
+                <SlideView uri={image.imageUrl} imageWidth={image.width} imageHeight={image.height} layers={[{ marks: an.marks }]} className="flex-1" pointRadius={4} />
+                <View className="absolute bottom-1 right-1 rounded-xs bg-black/75 px-1.5 py-0.5">
+                  <Text className="font-mono text-[10px] text-white">{an.total} núcleos marcados</Text>
+                </View>
+              </View>
+              {an.observation ? <Text numberOfLines={2} className="font-sans text-[11px] italic text-ink-subtle">“{an.observation}”</Text> : null}
+              <View className="flex-row justify-between border-t border-surface-alt pt-2">
+                <Text className="font-mono text-[10px] text-ink-subtle">{an.finalizedAt ? new Date(an.finalizedAt).toLocaleString('pt-BR') : '—'}</Text>
+                <Text numberOfLines={1} className="max-w-[140px] font-mono text-[10px] text-ink-subtle">HASH: {an.hash}</Text>
+              </View>
+            </Card>
+          ))}
+        </Grid>
+      </View>
+
+      <View className={`gap-5 ${wide ? 'flex-row items-start' : ''}`}>
+        <Card className={`gap-3 p-4 ${wide ? 'flex-[7]' : ''}`}>
+          <View className="flex-row flex-wrap items-center justify-between gap-2 border-b border-line pb-2.5">
+            <View className="flex-row items-center gap-2">
+              <Layers size={16} color={colors.primary} />
+              <Text className="font-sans-bold text-sm text-ink">Sobreposição e mapa de calor</Text>
+            </View>
+            <Pressable onPress={() => setSideBySide((v) => !v)} className="min-h-9 justify-center rounded-xs border border-line bg-surface-alt px-2">
+              <Text className="font-mono-bold text-xs text-primary">Modo: {sideBySide ? 'Lado a lado' : 'Sobreposição'}</Text>
+            </Pressable>
+          </View>
+          <View className="flex-row flex-wrap items-center gap-2">
+            <Text className="font-sans text-xs text-ink-subtle">Camadas:</Text>
             {blind.map((b) => (
               <Pressable
                 key={b.code}
                 onPress={() => setLayers((l) => ({ ...l, [b.code]: !visible(b.code) }))}
                 accessibilityRole="checkbox"
                 accessibilityState={{ checked: visible(b.code) }}
-                className={`min-h-8 flex-row items-center gap-1.5 rounded-xs border px-2.5 ${visible(b.code) ? 'border-ink-subtle bg-white' : 'border-line bg-surface'}`}
+                style={visible(b.code) ? { borderColor: b.color } : undefined}
+                className={`min-h-9 flex-row items-center gap-1.5 rounded-xs border px-2 ${visible(b.code) ? 'bg-surface-alt' : 'border-line bg-white'}`}
               >
-                <View style={{ backgroundColor: visible(b.code) ? b.color : colors.line }} className="h-2.5 w-2.5 rounded-full" />
-                <Text className={`font-sans text-xs ${visible(b.code) ? 'text-ink' : 'text-ink-subtle line-through'}`}>Análise {b.code}</Text>
+                <View style={{ backgroundColor: b.color }} className="h-2 w-2 rounded-full" />
+                <Text style={{ color: visible(b.code) ? b.color : colors.inkSubtle }} className="font-mono-bold text-xs">[Anotações {b.code}]</Text>
               </Pressable>
             ))}
+            <Pressable onPress={() => setHeatmap((v) => !v)} className={`min-h-9 flex-row items-center gap-1.5 rounded-xs border px-2.5 ${heatmap ? 'border-amber-300 bg-amber-100' : 'border-line bg-white'}`}>
+              <Flame size={14} color="#d97706" />
+              <Text className={`text-xs ${heatmap ? 'font-sans-bold text-amber-900' : 'font-sans-semibold text-ink-muted'}`}>[Mapa de calor de divergência]</Text>
+            </Pressable>
           </View>
 
-          {mode === 'lado' ? (
+          {sideBySide ? (
             <Grid cols={{ base: 1, md: Math.min(3, blind.length) }} gap={8}>
               {blind.filter((b) => visible(b.code)).map((b) => (
-                <View key={b.code} className="h-64 overflow-hidden rounded-xs border border-line bg-[#2a2b2e]">
+                <View key={b.code} className="h-64 overflow-hidden rounded-xs border border-line">
                   <SlideView uri={image.imageUrl} imageWidth={image.width} imageHeight={image.height} layers={[{ marks: b.marks, tint: b.color }]} zoom={zoom} className="flex-1" pointRadius={5} />
-                  <View className="absolute left-2 top-2 rounded-xs bg-black/70 px-1.5 py-0.5">
-                    <Text className="font-sans text-xs text-white">Análise {b.code}</Text>
+                  <View style={{ backgroundColor: b.color }} className="absolute left-2 top-2 rounded-xs px-1.5 py-0.5">
+                    <Text className="font-mono-bold text-[10px] text-white">{b.code}</Text>
                   </View>
                 </View>
               ))}
             </Grid>
           ) : (
-            <View className="relative h-[380px] overflow-hidden rounded-xs border border-line bg-[#2a2b2e]">
+            <View className="relative h-[360px] overflow-hidden rounded-xs border border-line">
               <SlideView
                 uri={image.imageUrl}
                 imageWidth={image.width}
                 imageHeight={image.height}
                 zoom={zoom}
+                heat={heatmap ? heat : undefined}
                 layers={blind.filter((b) => visible(b.code)).map((b) => ({ marks: b.marks, tint: b.color }))}
                 className="flex-1"
                 pointRadius={5}
               />
-              <View className="absolute left-2 top-2 flex-row items-center rounded-xs bg-white">
-                <Pressable onPress={() => setZoom((z) => Math.min(z + 0.25, 3))} accessibilityLabel="Aproximar" className="h-9 w-9 items-center justify-center">
+              <View className="absolute left-2 top-2 flex-row items-center gap-1 rounded-xs border border-line bg-white/90 p-1">
+                <Pressable onPress={() => setZoom((z) => Math.min(z + 0.25, 3))} accessibilityLabel="Aumentar zoom" className="h-9 w-9 items-center justify-center">
                   <ZoomIn size={16} color={colors.ink} />
                 </Pressable>
-                <Pressable onPress={() => setZoom((z) => Math.max(z - 0.25, 0.75))} accessibilityLabel="Afastar" className="h-9 w-9 items-center justify-center border-l border-line">
+                <Pressable onPress={() => setZoom((z) => Math.max(z - 0.25, 0.75))} accessibilityLabel="Diminuir zoom" className="h-9 w-9 items-center justify-center">
                   <ZoomOut size={16} color={colors.ink} />
                 </Pressable>
-                <Pressable onPress={() => setZoom(1)} accessibilityLabel="Tamanho original" className="h-9 justify-center border-l border-line px-2">
-                  <Text className="font-mono text-xs text-ink">1×</Text>
+                <Pressable onPress={() => setZoom(1)} className="h-9 justify-center px-1.5">
+                  <Text className="font-mono-bold text-xs text-primary">1x</Text>
                 </Pressable>
               </View>
+              <View className="absolute right-2 top-2 flex-row items-center gap-1.5 rounded-xs border border-line bg-white/95 px-2.5 py-1">
+                <View className="h-2 w-2 rounded-full bg-emerald-600" />
+                <Text className="font-mono-bold text-xs text-ink">{spatialAgreementPct}% coincidência espacial</Text>
+              </View>
+              {heatmap ? (
+                <View className="absolute bottom-2 left-2 rounded-xs bg-amber-200/90 px-1.5 py-0.5">
+                  <Text className="font-mono text-[10px] text-amber-950">{heat.length} região(ões) de divergência</Text>
+                </View>
+              ) : null}
             </View>
           )}
-          <Text className="font-sans text-xs text-ink-subtle">Ponto cheio: reagente. Contorno: não reagente. A cor indica a análise.</Text>
-        </Section>
+          <View className="flex-row flex-wrap items-center justify-between gap-2 border-t border-line pt-2">
+            <View className="flex-row gap-3">
+              <Text className="font-sans text-xs text-ink-subtle">● DAB reagente</Text>
+              <Text className="font-sans text-xs text-ink-subtle">○ HEM não reagente</Text>
+            </View>
+            <Text className="font-mono text-[11px] text-ink-subtle">Contorno colorido = análise (A, B, C...)</Text>
+          </View>
+        </Card>
 
-        <Section title={result ? 'Resultado registrado' : 'Registrar resultado'} className={wide ? 'flex-[5]' : ''}>
+        <Card className={`gap-3 p-4 ${wide ? 'flex-[5]' : ''}`}>
+          <View className="flex-row items-center justify-between border-b border-line pb-2.5">
+            <View className="flex-row items-center gap-2">
+              <FileCheck size={16} color={colors.primary} />
+              <Text className="font-sans-bold text-sm text-ink">Fechamento do resultado validado</Text>
+            </View>
+            <Badge label="Papel: Validador" />
+          </View>
+
           {result ? (
-            <View className="gap-4 rounded-xs border border-line bg-white p-4">
-              <Callout tone="success" icon={CheckCircle2}>
-                {`Registrado por ${result.validatorName} em ${fmt(result.frozenAt)}. Não pode mais ser alterado.`}
+            <View className="gap-3">
+              <Callout tone="success" icon={ShieldCheck} title="Resultado congelado e imutável">
+                {`Registrado por ${result.validatorName} em ${new Date(result.frozenAt).toLocaleString('pt-BR')}.`}
               </Callout>
-              <View className="gap-1.5">
-                <KeyValue label="Decisão" value={result.adoptedAnalysisCode ?? '—'} />
-                {result.reagentsCount !== undefined ? <KeyValue label="Reagentes" value={result.reagentsCount} /> : null}
-                {result.nonReagentsCount !== undefined ? <KeyValue label="Não reagentes" value={result.nonReagentsCount} /> : null}
+              <View className="gap-1 rounded-xs border border-line bg-surface-alt p-3">
+                <KeyValue label="Decisão:" value={result.adoptedAnalysisCode ?? '—'} valueClassName="text-primary" />
+                <KeyValue label="Ki-67 validado:" value={formatKi67(result.consensusKi67)} valueClassName="text-primary" />
+                <KeyValue label="ICC / Δ / coincidência:" value={`${result.iccScore} / ${result.divergenceDeltaPP} p.p. / ${result.spatialAgreementPct}%`} />
               </View>
-              <View className="gap-1">
-                <Text className="font-sans-medium text-[13px] text-ink">Justificativa</Text>
-                <Text className="font-sans text-[13px] leading-5 text-ink-muted">{result.justification}</Text>
-              </View>
+              <Text className="font-sans text-xs italic text-ink-muted">“{result.justification}”</Text>
+              <Text numberOfLines={1} className="font-mono text-[10px] text-ink-subtle">SHA-256: {result.hashSHA256}</Text>
             </View>
           ) : (
-            <View className="gap-4 rounded-xs border border-line bg-white p-4">
+            <>
+              <View className="gap-1 rounded-xs border border-line bg-surface-alt p-3">
+                <View className="flex-row items-baseline justify-between">
+                  <Text className="font-mono text-xs text-ink-subtle">Ki-67 mediano:</Text>
+                  <Text className="font-mono-bold text-2xl text-primary">{formatKi67(metrics.median)}</Text>
+                </View>
+                <KeyValue label="Intervalo:" value={`${formatKi67(metrics.min)} – ${formatKi67(metrics.max)} (Δ ${metrics.deltaPP} p.p.)`} />
+              </View>
               <View className="gap-1.5">
-                <Text className="font-sans-medium text-[13px] text-ink">Qual contagem vale para esta imagem?</Text>
-                <RadioRow selected={choice === 'consenso'} onPress={() => setChoice('consenso')} label="Média das análises" value={`${consensus.reagents} / ${consensus.nonReagents}`} />
+                <Text className="font-sans-semibold text-xs text-ink">Escolha a decisão:</Text>
+                <RadioRow selected={choice === 'consenso'} onPress={() => setChoice('consenso')} label="Consenso (mediana das análises)" value={formatKi67(metrics.median)} />
                 {blind.map((b) => (
-                  <RadioRow key={b.code} selected={choice === b.code} onPress={() => setChoice(b.code)} label={`Análise ${b.code}`} value={`${b.reagents} / ${b.nonReagents}`} />
+                  <RadioRow key={b.code} selected={choice === b.code} onPress={() => setChoice(b.code)} label={`Adotar a análise ${b.code}`} value={formatKi67(b.ki67)} />
                 ))}
-                <Text className="font-sans text-xs text-ink-subtle">Valores: reagentes / não reagentes.</Text>
               </View>
               <TextField
-                label="Justificativa"
+                label="Parecer técnico do validador (obrigatório)"
                 multiline
                 value={justification}
                 onChangeText={setJustification}
-                placeholder="Por que esta contagem? Diferenças entre as análises, áreas excluídas…"
+                placeholder="Justificativa sobre concordância, hotspot e critérios de exclusão..."
               />
-              <View className="gap-1">
-                <Check ok={blind.length >= image.requiredEvaluatorsCount} text={`${blind.length} de ${image.requiredEvaluatorsCount} análises finalizadas`} />
-                <Check ok text="Você não anotou esta imagem" />
+              <Text className="-mt-2 font-sans text-[10px] text-ink-subtle">O resultado será selado com hash SHA-256 e não poderá ser alterado.</Text>
+              <View className="gap-1 rounded-xs border border-line bg-surface-alt p-2">
+                <Check ok={blind.length >= image.requiredEvaluatorsCount} text={`Meta de ${image.requiredEvaluatorsCount} análises independentes cumprida`} />
+                <Check ok={metrics.deltaPP < DELTA_LIMIT} text={`Divergência entre avaliadores < ${DELTA_LIMIT} p.p.`} />
+                <Check ok text="Você não anotou esta imagem (RN-08)" />
               </View>
-              <Button label="Registrar resultado" size="lg" onPress={openConfirm} />
-            </View>
+              <Button label="Aprovar e congelar resultado" icon={ShieldCheck} size="lg" onPress={openConfirm} />
+            </>
           )}
-        </Section>
+        </Card>
       </View>
 
       <Dialog
         visible={confirmOpen}
         onClose={() => setConfirmOpen(false)}
-        title="Registrar o resultado?"
+        title="Congelar resultado validado?"
         subtitle={image.code}
+        icon={ShieldCheck}
+        iconTone="success"
         footer={
           <>
             <Button label="Revisar" variant="outline" onPress={() => setConfirmOpen(false)} />
-            <Button label="Registrar" loading={busy} onPress={confirm} />
+            <Button label="Confirmar e selar resultado" icon={CheckCircle2} loading={busy} onPress={confirm} />
           </>
         }
       >
-        <Text className="font-sans text-[13px] leading-5 text-ink-muted">Depois de registrado, o resultado não pode ser alterado.</Text>
-        <View className="gap-1.5 rounded-xs bg-surface p-3">
-          <KeyValue label="Decisão" value={chosen ? `Análise ${chosen.code}` : 'Média das análises'} />
-          <KeyValue label="Reagentes" value={decided.reagents} />
-          <KeyValue label="Não reagentes" value={decided.nonReagents} />
+        <Text className="font-sans text-xs leading-5 text-ink-muted">
+          O resultado se tornará <Text className="font-sans-semibold text-ink">definitivo e imutável</Text>, com hash SHA-256 para auditoria.
+        </Text>
+        <View className="gap-1 rounded-xs border border-line bg-surface-alt p-3">
+          <KeyValue label="Decisão:" value={chosen ? `Análise ${chosen.code}` : 'Consenso (mediana)'} valueClassName="text-primary" />
+          <KeyValue label="Ki-67 selecionado:" value={formatKi67(chosenKi67)} valueClassName="text-primary" />
         </View>
       </Dialog>
     </Screen>
   );
 }
 
+function Metric({ label, value, tag, ok }: { label: string; value: string; tag: string; ok: boolean }) {
+  return (
+    <View className="items-end">
+      <Text className="font-mono text-[10px] uppercase text-ink-subtle">{label}</Text>
+      <View className="flex-row items-center gap-1">
+        <Text className={`font-mono-bold text-lg ${ok ? 'text-primary' : 'text-amber-700'}`}>{value}</Text>
+        <Text className={`rounded-xs px-1 font-mono text-[10px] ${ok ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-800'}`}>{tag}</Text>
+      </View>
+    </View>
+  );
+}
+
 function Check({ ok, text }: { ok: boolean; text: string }) {
   return (
     <View className="flex-row items-center gap-1.5">
-      {ok ? <CheckCircle2 size={14} color={colors.success} /> : <AlertTriangle size={14} color={colors.warning} />}
-      <Text className="font-sans text-xs text-ink-muted">{text}</Text>
+      {ok ? <CheckCircle2 size={14} color="#047857" /> : <AlertTriangle size={14} color="#b45309" />}
+      <Text className="font-sans text-[11px] text-ink">{text}</Text>
     </View>
   );
 }

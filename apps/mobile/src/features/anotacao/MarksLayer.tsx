@@ -70,7 +70,7 @@ function MarksLayerBase({ frame, viewport, marks, selectedId, tint, showGrid, da
               <Rect x={a.x} y={a.y} width={b.x - a.x} height={b.y - a.y} fill={color} fillOpacity={0.15} stroke={stroke} strokeWidth={2} strokeDasharray={dashed ? '5 3' : undefined} />
               {selected ? <Rect x={a.x - 3} y={a.y - 3} width={b.x - a.x + 6} height={b.y - a.y + 6} fill="none" stroke="#fbbf24" strokeWidth={2} /> : null}
               <Rect x={a.x} y={a.y - 14} width={m.label === 'reagente' ? 70 : 82} height={12} fill={color} />
-              <SvgText x={a.x + 3} y={a.y - 5} fontSize={9} fill="#fff" fontFamily="IBMPlexMono_500Medium">
+              <SvgText x={a.x + 3} y={a.y - 5} fontSize={9} fill="#fff" fontFamily="JetBrainsMono_500Medium">
                 {m.label === 'reagente' ? 'Caixa Reagente' : 'Caixa Não Reag.'}
               </SvgText>
             </G>

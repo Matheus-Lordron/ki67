@@ -5,8 +5,7 @@
 import type { AnnotationMark, ComparisonResult, EvaluatorAnalysis, ImageItem } from '@/types';
 import { calculateInterObserverMetrics, calculateKi67Index, calculateSpatialCoincidence, countMarks } from '@/utils/ki67';
 
-// Cores das análises A, B, C... Evitam o marrom e o azul, que já indicam as classes.
-export const LAYER_COLORS = ['#c2185b', '#2e7d32', '#ef6c00', '#6a1b9a', '#00838f', '#212121'];
+export const LAYER_COLORS = ['#00236f', '#0284c7', '#8e4d2d', '#047857', '#7c3aed', '#be123c'];
 const TOLERANCE_PCT = 3.5;
 
 export interface BlindAnalysis {

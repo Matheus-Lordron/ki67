@@ -32,7 +32,7 @@ export function SlideView({ uri, imageWidth, imageHeight, layers, zoom = 1, heat
   const rect = imageRect(frame, viewport);
   return (
     <View
-      className={`overflow-hidden bg-[#2a2b2e] ${className}`}
+      className={`overflow-hidden bg-slate-900 ${className}`}
       onLayout={(e: LayoutChangeEvent) => setSize({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}
     >
       {size.w > 0 ? (

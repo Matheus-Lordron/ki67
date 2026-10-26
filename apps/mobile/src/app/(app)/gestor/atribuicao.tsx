@@ -1,13 +1,15 @@
+import { AlertTriangle, CheckCircle2, FileImage, FolderKanban, ShieldAlert, Users } from 'lucide-react-native';
 import { useState } from 'react';
 import { Text, View } from 'react-native';
 
 import { Button } from '@/components/ui/Button';
-import { PageHeader } from '@/components/ui/Card';
-import { Checkbox, Segmented } from '@/components/ui/Field';
+import { Badge, Callout, Card, PageHeader } from '@/components/ui/Card';
+import { Checkbox } from '@/components/ui/Field';
 import { Screen } from '@/components/ui/Screen';
 import { Select } from '@/components/ui/Select';
 import { ProjectPicker, useManagerScope } from '@/features/gestor/useManagerScope';
 import { useAppStore } from '@/state/appStore';
+import { colors } from '@/theme/colors';
 
 // Atribuição de avaliadores (RF-10, RF-29, RN-07).
 export default function AssignmentScreen() {
@@ -33,7 +35,7 @@ export default function AssignmentScreen() {
 
   const toggle = (id: string) => {
     if (id === user?.id || id === managerId) {
-      showToast('O gestor do projeto não pode anotar imagens do próprio projeto.');
+      showToast('Bloqueado: o gestor não pode se autoatribuir análises (RN-07).');
       return;
     }
     if (selected.includes(id)) {
@@ -41,7 +43,7 @@ export default function AssignmentScreen() {
       return;
     }
     if (new Set([...alreadyAssigned, ...selected, id]).size > limit) {
-      showToast(`Este lote pede ${limit} avaliadores por imagem.`);
+      showToast(`Limite N=${limit} avaliadores por imagem atingido.`);
       return;
     }
     setSelected((s) => [...s, id]);
@@ -49,7 +51,7 @@ export default function AssignmentScreen() {
 
   const save = async () => {
     if (!selected.length) {
-      showToast('Escolha pelo menos um avaliador.');
+      showToast('Selecione ao menos 1 avaliador.');
       return;
     }
     setBusy(true);
@@ -59,50 +61,51 @@ export default function AssignmentScreen() {
       showToast(result.error);
       return;
     }
-    showToast(`Atribuição salva. ${result.created} análise(s) criada(s).`);
+    showToast(`Atribuição salva: ${result.created} análise(s) criada(s).`);
     setSelected([]);
   };
 
   return (
     <Screen maxWidth={900}>
-      <PageHeader title="Atribuição" description={<ProjectPicker />} />
+      <PageHeader title="Atribuição de Avaliadores aos Lotes & Imagens" description={<ProjectPicker />} />
 
-      <View className="gap-6">
+      <Card className="gap-6 p-6">
         <View className="gap-2">
-          <Text className="font-sans-medium text-[13px] text-ink">Atribuir</Text>
-          <Segmented
-            value={target}
-            onChange={(v) => { setTarget(v); setSelected([]); }}
-            options={[
-              { value: 'batch', label: 'Um lote inteiro' },
-              { value: 'image', label: 'Uma imagem' },
-            ]}
-          />
+          <Text className="font-sans-semibold text-xs text-ink">Nível de atribuição:</Text>
+          <View className="flex-row gap-3">
+            <Button label="Todo o lote" icon={FolderKanban} variant={target === 'batch' ? 'primary' : 'outline'} className="flex-1" onPress={() => { setTarget('batch'); setSelected([]); }} />
+            <Button label="Imagem específica" icon={FileImage} variant={target === 'image' ? 'primary' : 'outline'} className="flex-1" onPress={() => { setTarget('image'); setSelected([]); }} />
+          </View>
         </View>
 
         {target === 'batch' ? (
           <Select
-            label="Lote"
+            label="Selecione o lote:"
             value={batch?.id ?? null}
             onChange={(v) => { setBatchId(v); setSelected([]); }}
-            options={batches.map((b) => ({ value: b.id, label: b.name, description: `${b.evaluatorsPerImage} avaliadores por imagem · ${images.filter((i) => i.batchId === b.id).length} imagens` }))}
+            options={batches.map((b) => ({ value: b.id, label: b.name, description: `Requer N=${b.evaluatorsPerImage} avaliadores · ${images.filter((i) => i.batchId === b.id).length} imagens` }))}
           />
         ) : (
           <Select
-            label="Imagem"
+            label="Selecione a imagem:"
             value={image?.id ?? null}
             onChange={(v) => { setImageId(v); setSelected([]); }}
-            options={images.map((i) => ({ value: i.id, label: `${i.code} — ${i.organ}`, description: `${i.batchName} · ${i.assignedEvaluatorIds.length} de ${i.requiredEvaluatorsCount} avaliadores` }))}
+            options={images.map((i) => ({ value: i.id, label: `${i.code} — ${i.organ}`, description: `${i.batchName} · ${i.assignedEvaluatorIds.length}/${i.requiredEvaluatorsCount} atribuídos` }))}
           />
         )}
 
-        <View className="gap-2">
-          <View className="flex-row items-baseline justify-between">
-            <Text className="font-sans-medium text-[13px] text-ink">Avaliadores</Text>
-            <Text className="font-sans text-[13px] text-ink-muted">
-              <Text className="font-mono text-ink">{new Set([...alreadyAssigned, ...selected]).size}</Text> de {limit} por imagem
-            </Text>
+        <View className="flex-row items-center justify-between rounded-xs border border-primary bg-surface-alt p-3">
+          <View className="flex-row items-center gap-2">
+            <Users size={16} color={colors.primary} />
+            <Text className="font-mono-bold text-xs text-primary">Avaliadores por imagem:</Text>
           </View>
+          <Text className="font-mono-bold text-base text-primary">
+            {new Set([...alreadyAssigned, ...selected]).size} / {limit} <Text className="font-mono text-[11px] text-ink-subtle">selecionados</Text>
+          </Text>
+        </View>
+
+        <View className="gap-2">
+          <Text className="font-sans-semibold text-xs text-ink">Selecione os avaliadores (multisseleção):</Text>
           {evaluators.map((ev) => {
             const isManager = ev.id === user?.id || ev.id === managerId;
             const assigned = alreadyAssigned.includes(ev.id);
@@ -117,11 +120,11 @@ export default function AssignmentScreen() {
                 />
                 {isManager ? (
                   <View className="ml-2">
-                    <Text className="font-sans text-xs text-ink-subtle">É o gestor do projeto: não pode anotar aqui.</Text>
+                    <Badge label="Autoatribuição bloqueada (protocolo cego)" tone="warning" icon={ShieldAlert} />
                   </View>
                 ) : assigned ? (
                   <View className="ml-2">
-                    <Text className="font-sans text-xs text-ink-subtle">Já atribuído.</Text>
+                    <Badge label="Já atribuído" tone="success" icon={CheckCircle2} />
                   </View>
                 ) : null}
               </View>
@@ -129,14 +132,14 @@ export default function AssignmentScreen() {
           })}
         </View>
 
-        <Text className="font-sans text-xs leading-5 text-ink-subtle">
-          Os avaliadores veem só o código da imagem. Repetir uma atribuição não cria análises duplicadas.
-        </Text>
+        <Callout tone="info" icon={AlertTriangle}>
+          O gestor não pode avaliar o próprio projeto (RN-07). Repetir uma atribuição não duplica análises, e passar de N é recusado (RF-29). Os avaliadores recebem só o código anonimizado da imagem.
+        </Callout>
 
-        <View className="flex-row justify-end border-t border-line pt-4">
-          <Button label="Salvar atribuição" loading={busy} disabled={!targetImages.length} onPress={save} />
+        <View className="flex-row justify-end border-t border-surface-alt pt-3">
+          <Button label="Salvar atribuições" icon={CheckCircle2} loading={busy} disabled={!targetImages.length} onPress={save} />
         </View>
-      </View>
+      </Card>
     </Screen>
   );
 }

@@ -16,7 +16,7 @@ export default function ProjectAuditScreen() {
 
   return (
     <Screen>
-      <PageHeader title="Registro de atividades" description={<ProjectPicker />} />
+      <PageHeader title="Log de Auditoria do Projeto" badge="RASTREABILIDADE" description={<ProjectPicker />} />
       <AuditLogView logs={projectLogs} users={involved} images={images} />
     </Screen>
   );

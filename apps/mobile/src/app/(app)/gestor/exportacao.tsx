@@ -12,7 +12,7 @@ import { ProjectPicker, useManagerScope } from '@/features/gestor/useManagerScop
 import { saveTextFile } from '@/services/download';
 import { useAppStore } from '@/state/appStore';
 import type { EvaluatorAnalysis, ImageItem } from '@/types';
-import { calculateKi67Index, countMarks, generateCsvExport, generateLabelmeJson } from '@/utils/ki67';
+import { calculateKi67Index, countMarks, formatKi67, generateCsvExport, generateLabelmeJson } from '@/utils/ki67';
 
 interface Row {
   analysis: EvaluatorAnalysis;
@@ -58,7 +58,7 @@ export default function AnalysesExportScreen() {
         observation: r.analysis.observation,
       })),
     );
-    await saveTextFile(`segmenta_${stamp}.csv`, `﻿${csv}`, 'text/csv');
+    await saveTextFile(`segmenta_ki67_${stamp}.csv`, `﻿${csv}`, 'text/csv');
     addAuditLog('EXPORTACAO', 'export', `CSV · ${batchName} · ${rows.length} análises.`);
     showToast('Exportação CSV gerada.');
   };
@@ -80,22 +80,23 @@ export default function AnalysesExportScreen() {
   return (
     <Screen>
       <PageHeader
-        title="Análises"
+        title="Todas as Análises & Exportação de Dados"
+        badge="LABELME JSON & CSV"
         description={<ProjectPicker />}
         actions={
           <>
             <Button label="Exportar CSV" icon={FileSpreadsheet} variant="outline" onPress={exportCsv} disabled={!rows.length} />
-            {Platform.OS === 'web' ? <Button label="Exportar Labelme" icon={FileCode} onPress={() => exportLabelme(rows)} disabled={!rows.length} /> : null}
+            {Platform.OS === 'web' ? <Button label="Exportar Labelme JSON" icon={FileCode} onPress={() => exportLabelme(rows)} disabled={!rows.length} /> : null}
           </>
         }
       />
 
-      <View className="gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <View className="gap-3 border-b border-line pb-3 sm:flex-row sm:items-center sm:justify-between">
         <View className="sm:w-80">
-          <TextField icon={Search} value={search} onChangeText={setSearch} placeholder="Buscar imagem ou análise" accessibilityLabel="Buscar" />
+          <TextField icon={Search} value={search} onChangeText={setSearch} placeholder="Buscar por lâmina ou análise..." />
         </View>
         <View className="flex-row items-center gap-2">
-          <Text className="font-sans text-[13px] text-ink-muted">Lote</Text>
+          <Text className="font-sans text-xs text-ink-subtle">Filtrar lote:</Text>
           <Select compact value={batchId} onChange={setBatchId} options={[{ value: 'all', label: 'Todos os lotes' }, ...batches.map((b) => ({ value: b.id, label: b.name }))]} />
         </View>
       </View>
@@ -105,21 +106,23 @@ export default function AnalysesExportScreen() {
         keyOf={(r) => r.analysis.id}
         empty="Nenhuma análise encontrada."
         columns={[
-          { key: 'img', title: 'Imagem', width: 110, render: (r) => <Cell className="font-mono text-[13px] text-ink">{r.image.code}</Cell> },
-          { key: 'lote', title: 'Lote', width: 200, render: (r) => <Cell className="font-sans text-[13px] text-ink-muted" lines={1}>{r.image.batchName}</Cell> },
-          { key: 'av', title: 'Análise', width: 130, render: (r) => <Cell className="font-sans text-[13px] text-ink">{r.analysis.evaluatorCode}</Cell> },
-          { key: 'v', title: 'Versão', width: 70, render: (r) => <Cell className="font-mono text-[13px] text-ink-muted">{r.analysis.currentVersion}</Cell> },
-          { key: 'r', title: 'Reagentes', width: 90, render: (r) => <Cell className="font-mono text-[13px] text-ink">{r.reagents}</Cell> },
-          { key: 'nr', title: 'Não reagentes', width: 110, render: (r) => <Cell className="font-mono text-[13px] text-ink">{r.nonReagents}</Cell> },
+          { key: 'img', title: 'Lâmina', width: 110, render: (r) => <Cell className="font-mono-bold text-xs text-primary">{r.image.code}</Cell> },
+          { key: 'lote', title: 'Lote', width: 200, render: (r) => <Cell className="font-sans text-xs text-ink-muted" lines={1}>{r.image.batchName}</Cell> },
+          { key: 'av', title: 'Análise (anonimizada)', width: 150, render: (r) => <Cell className="font-sans-semibold text-xs text-ink">{r.analysis.evaluatorCode}</Cell> },
+          { key: 'v', title: 'Versão', width: 70, render: (r) => <Cell className="font-mono text-xs text-slate-600">v{r.analysis.currentVersion}</Cell> },
+          { key: 'k', title: 'Ki-67', width: 80, render: (r) => <Cell className="font-mono-bold text-sm text-primary">{formatKi67(r.ki67)}</Cell> },
+          { key: 'r', title: 'Reagentes', width: 90, render: (r) => <Cell className="font-mono-bold text-xs text-warn">{r.reagents}</Cell> },
+          { key: 'nr', title: 'Não reag.', width: 90, render: (r) => <Cell className="font-mono text-xs text-sky-700">{r.nonReagents}</Cell> },
           { key: 'st', title: 'Status', width: 120, render: (r) => <Badge label={r.analysis.status === 'finalizada' ? 'Finalizada' : 'Em andamento'} tone={r.analysis.status === 'finalizada' ? 'success' : 'warning'} /> },
-          { key: 'dt', title: 'Salva em', width: 140, render: (r) => <Cell className="font-sans text-xs text-ink-muted">{new Date(r.analysis.lastSavedAt).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}</Cell> },
+          { key: 'dt', title: 'Último salvamento', width: 150, render: (r) => <Cell className="font-mono text-[11px] text-ink-subtle">{new Date(r.analysis.lastSavedAt).toLocaleString('pt-BR')}</Cell> },
+          { key: 'h', title: 'Hash SHA-256', width: 130, render: (r) => <Cell className="font-mono text-[10px] text-slate-500" lines={1}>{r.analysis.hashSHA256}</Cell> },
           {
             key: 'lm',
             title: 'Labelme',
             width: 90,
             render: (r) => (
               <Pressable onPress={() => exportLabelme([r])} className="min-h-9 justify-center">
-                <Text className="font-sans text-[13px] text-ink underline">Baixar</Text>
+                <Text className="font-sans-semibold text-xs text-primary">Exportar</Text>
               </Pressable>
             ),
           },

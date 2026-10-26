@@ -7,9 +7,12 @@ import {
   Contrast,
   Grid3x3,
   Hexagon,
+  Lock,
   Maximize2,
   MousePointer2,
   Redo2,
+  Send,
+  Sliders,
   Square,
   Trash2,
   Undo2,
@@ -23,20 +26,20 @@ import { Button } from '@/components/ui/Button';
 import { KeyValue } from '@/components/ui/Card';
 import { Dialog } from '@/components/ui/Dialog';
 import { AnnotationCanvas, type CanvasHandle } from '@/features/anotacao/AnnotationCanvas';
-import { ClassSwatch, QuantPanel, SaveIndicator } from '@/features/anotacao/QuantPanel';
+import { QuantPanel, SaveIndicator } from '@/features/anotacao/QuantPanel';
 import { VersionHistoryDialog } from '@/features/anotacao/VersionHistoryDialog';
 import { isDemo } from '@/data/mode';
 import { useAppStore } from '@/state/appStore';
 import { type Tool, useEditorStore } from '@/state/editorStore';
 import { colors } from '@/theme/colors';
-import { countMarks } from '@/utils/ki67';
+import { calculateKi67Index, countMarks, formatKi67 } from '@/utils/ki67';
 
 const AUTOSAVE_MS = 5000; // salva 5 s depois da última alteração (RF-21: até 10 s)
 
 const TOOLS: { tool: Tool; icon: LucideIcon; key: string; label: string }[] = [
-  { tool: 'select', icon: MousePointer2, key: 'V', label: 'Selecionar e mover' },
-  { tool: 'point', icon: CircleDot, key: 'P', label: 'Ponto' },
-  { tool: 'box', icon: Square, key: 'C', label: 'Caixa' },
+  { tool: 'select', icon: MousePointer2, key: 'V', label: 'Mover / Selecionar' },
+  { tool: 'point', icon: CircleDot, key: 'P', label: 'Ponto nuclear' },
+  { tool: 'box', icon: Square, key: 'C', label: 'Caixa delimitadora' },
   { tool: 'polygon', icon: Hexagon, key: 'G', label: 'Polígono' },
 ];
 
@@ -51,7 +54,7 @@ function ToolButton({ icon: Icon, label, hint, active, disabled, onPress, color 
       className={`h-11 w-11 items-center justify-center rounded-xs ${active ? 'bg-primary' : 'web:hover:bg-surface-alt'} ${disabled ? 'opacity-40' : ''}`}
     >
       <Icon size={16} color={active ? colors.white : (color ?? colors.inkMuted)} />
-      <Text className={`mt-0.5 font-mono text-[9px] ${active ? 'text-white' : 'text-ink-subtle'}`}>{hint}</Text>
+      <Text className={`mt-0.5 font-mono text-[9px] ${active ? 'text-white' : 'text-ink-muted'}`}>{hint}</Text>
     </Pressable>
   );
 }
@@ -124,13 +127,14 @@ export default function AnnotationScreen() {
   }, []);
 
   const counts = useMemo(() => countMarks(editor.marks), [editor.marks]);
+  const ki67 = calculateKi67Index(counts.reagents, counts.nonReagents);
 
   if (!allowed || !image) return <Redirect href="/avaliador" />;
   if (analysis?.status === 'finalizada' && !finalizeOpen) return <Redirect href={`/avaliador/finalizada/${image.id}`} />;
 
   if (editor.loading || editor.imageId !== image.id || editor.loadError) {
     return (
-      <View className="flex-1 items-center justify-center gap-3 bg-[#2a2b2e] p-6">
+      <View className="flex-1 items-center justify-center gap-3 bg-slate-900 p-6">
         {editor.loadError ? (
           <>
             <Text className="text-center font-sans-semibold text-sm text-white">{editor.loadError}</Text>
@@ -139,7 +143,7 @@ export default function AnnotationScreen() {
         ) : (
           <>
             <ActivityIndicator color="#fff" />
-            <Text className="font-sans text-[13px] text-[#c9c9c4]">Abrindo {image.code}…</Text>
+            <Text className="font-mono text-xs text-slate-300">Abrindo {image.code}...</Text>
           </>
         )}
       </View>
@@ -148,19 +152,19 @@ export default function AnnotationScreen() {
 
   const sidePanel = width >= 1024;
   const sideToolbar = width >= 768;
-  const compact = width < 480; // celular: o botão do painel mostra só o total
+  const compact = width < 480; // celular: o botão do painel mostra só o índice
   const menuMark = menu ? editor.marks.find((m) => m.id === menu.id) : null;
 
   const preAnnotate = () => {
     const added = editor.preAnnotate();
-    showToast(added ? `${added} sugestões de não reagentes adicionadas. Revise antes de finalizar.` : 'Nenhuma sugestão nova nesta imagem.');
+    showToast(added ? `${added} núcleos não reagentes pré-marcados para revisão.` : 'Nenhum novo núcleo azul-claro encontrado.');
   };
 
   const finalize = async () => {
     const ok = await editor.finalize();
     setFinalizeOpen(false);
     if (ok) {
-      showToast('Análise finalizada.');
+      showToast('Análise finalizada e enviada para a comparação.');
       router.replace(`/avaliador/finalizada/${image.id}`);
     }
   };
@@ -168,6 +172,7 @@ export default function AnnotationScreen() {
   const panel = (
     <QuantPanel
       counts={counts}
+      ki67={ki67}
       activeLabel={editor.activeLabel}
       onLabel={editor.setActiveLabel}
       onPreAnnotate={preAnnotate}
@@ -180,14 +185,23 @@ export default function AnnotationScreen() {
 
   return (
     <View className="flex-1 bg-surface">
-      {/* Contexto da imagem; o trabalho dos outros avaliadores nunca aparece aqui */}
-      <View className="flex-row flex-wrap items-center justify-between gap-2 border-b border-line bg-white px-4 py-2 lg:px-6">
-        <View className="flex-shrink flex-row flex-wrap items-baseline gap-x-3 gap-y-1">
-          <Text className="font-mono text-[13px] text-ink">{image.code}</Text>
-          <Text numberOfLines={1} className="flex-shrink font-sans text-[13px] text-ink-muted">{image.organ}</Text>
-          <Text className="font-sans text-xs text-ink-subtle">{image.opticalMagnification}</Text>
+      {/* Faixa do protocolo cego */}
+      <View className="flex-row flex-wrap items-center justify-between gap-2 border-b border-line bg-surface-alt px-4 py-1.5 lg:px-6">
+        <View className="flex-shrink flex-row items-center gap-2">
+          <Lock size={16} color={colors.primary} />
+          <Text className="flex-shrink font-sans text-xs text-ink">
+            <Text className="font-sans-semibold text-primary">Modo cego ativo: </Text>
+            marcações e anotações de outros avaliadores permanecem ocultas.
+          </Text>
         </View>
-        {!sidePanel ? <SaveIndicator status={editor.saveStatus} version={editor.activeVersion} offline={!isOnline} /> : <Text className="font-sans text-xs text-ink-subtle">Análise cega: você não vê as marcações dos outros avaliadores.</Text>}
+        <View className="flex-shrink flex-row flex-wrap items-center gap-x-3 gap-y-1">
+          <View className="flex-row items-center gap-1">
+            <View className="h-2 w-2 rounded-full bg-dab" />
+            <Text className="font-mono-bold text-[11px] text-dab">{image.opticalMagnification}</Text>
+          </View>
+          <Text className="font-mono text-[11px] text-primary">Amostra: {image.code}</Text>
+          {!sidePanel ? <SaveIndicator status={editor.saveStatus} version={editor.activeVersion} offline={!isOnline} /> : null}
+        </View>
       </View>
 
       <View className="flex-1 flex-row">
@@ -212,7 +226,7 @@ export default function AnnotationScreen() {
 
           {/* Barra de ferramentas lateral (tablet e desktop), alvos de 44 px */}
           {sideToolbar ? (
-            <View className="absolute left-4 top-4 z-30 gap-1 rounded-xs border border-line bg-white p-1">
+            <View className="absolute left-4 top-4 z-30 gap-1 rounded-xs border border-line bg-white/95 p-1 shadow-md">
               {TOOLS.map((t) => (
                 <ToolButton key={t.tool} icon={t.icon} label={t.label} hint={t.key} active={editor.tool === t.tool} onPress={() => editor.setTool(t.tool)} />
               ))}
@@ -222,26 +236,33 @@ export default function AnnotationScreen() {
               <View className="my-0.5 h-px bg-line" />
               <ToolButton icon={ZoomIn} label="Aumentar zoom" hint="+" onPress={() => canvas.current?.zoomBy(1.25)} />
               <ToolButton icon={ZoomOut} label="Diminuir zoom" hint="-" onPress={() => canvas.current?.zoomBy(0.8)} />
-              <ToolButton icon={Maximize2} label="Ajustar à tela" hint="0" onPress={() => canvas.current?.reset()} />
+              <ToolButton icon={Maximize2} label="Ajustar à tela" hint="0" color={colors.primary} onPress={() => canvas.current?.reset()} />
               <View className="my-0.5 h-px bg-line" />
-              <ToolButton icon={Contrast} label="Fundo claro ou escuro" hint="fundo" onPress={() => setDark((d) => !d)} />
-              <ToolButton icon={Grid3x3} label="Grade de contagem" hint="grade" active={grid} onPress={() => setGrid((g) => !g)} />
+              <ToolButton icon={Contrast} label="Alternar fundo claro/escuro" hint="Fundo" onPress={() => setDark((d) => !d)} />
+              <ToolButton icon={Grid3x3} label="Grade de contagem" hint="Grade" active={grid} onPress={() => setGrid((g) => !g)} />
             </View>
           ) : null}
 
           {/* Barra de status */}
           <View pointerEvents="box-none" className={`absolute left-4 right-4 flex-row items-center justify-between md:left-20 ${sidePanel ? 'bottom-4' : 'bottom-20'}`}>
-            <View className="flex-shrink flex-row flex-wrap items-center gap-x-3 gap-y-0.5 rounded-xs bg-black/70 px-3 py-1.5">
-              <Text className="font-mono text-xs text-white">{(zoom * 100).toFixed(0)}%</Text>
-              <Text className="font-sans text-xs text-[#c9c9c4]">
-                {Platform.OS === 'web' ? 'Espaço + arrastar move · roda do mouse aproxima · botão direito abre o menu' : 'Pinça aproxima · dois dedos movem · toque longo abre o menu'}
-              </Text>
+            <View className="flex-shrink flex-row flex-wrap items-center gap-x-3 gap-y-0.5 rounded-xs border border-slate-700/60 bg-slate-950/85 px-3 py-1.5 shadow-md">
+              <Text className="font-mono text-xs text-slate-200">Zoom: {(zoom * 100).toFixed(0)}%</Text>
+              <Text className="font-mono text-xs text-slate-600">|</Text>
+              <Text className="font-mono text-xs text-emerald-400">{editor.marks.length} marcações</Text>
+              {Platform.OS === 'web' ? (
+                <>
+                  <Text className="font-mono text-xs text-slate-600">|</Text>
+                  <Text className="font-mono text-[11px] text-amber-300">Espaço+arrastar move · roda dá zoom · botão direito abre o menu</Text>
+                </>
+              ) : (
+                <Text className="font-mono text-[11px] text-amber-300">Pinça: zoom · 2 dedos: mover · toque longo: menu</Text>
+              )}
             </View>
           </View>
 
           {/* Barra rápida (celular e tablet sem painel lateral) */}
           {!sidePanel ? (
-            <View className="absolute bottom-2 left-2 right-2 z-30 flex-row items-center justify-between gap-1 rounded-xs border border-line bg-white p-1.5">
+            <View className="absolute bottom-2 left-2 right-2 z-30 flex-row items-center justify-between gap-1 rounded-xs border border-line bg-white/95 p-1.5 shadow-lg">
               {/* Em telas muito estreitas as ferramentas rolam de lado, em vez de empurrar a barra para fora da tela */}
               <ScrollView horizontal showsHorizontalScrollIndicator={false} className="flex-shrink" contentContainerClassName="items-center">
                 {(sideToolbar ? [] : TOOLS).map((t) => (
@@ -251,14 +272,16 @@ export default function AnnotationScreen() {
               </ScrollView>
               <Pressable
                 onPress={() => editor.setActiveLabel(editor.activeLabel === 'reagente' ? 'nao_reagente' : 'reagente')}
-                accessibilityLabel={`Classe ativa: ${editor.activeLabel === 'reagente' ? 'reagente' : 'não reagente'}. Toque para trocar.`}
-                className="h-11 flex-row items-center gap-1.5 rounded-xs border border-line px-2.5"
+                accessibilityLabel="Trocar label ativa"
+                className={`h-11 flex-row items-center gap-1 rounded-xs border px-2 ${editor.activeLabel === 'reagente' ? 'border-dab bg-warn-soft' : 'border-hema bg-hema-soft'}`}
               >
-                <ClassSwatch label={editor.activeLabel} size={12} />
-                <Text className="font-mono text-[13px] text-ink">{editor.activeLabel === 'reagente' ? counts.reagents : counts.nonReagents}</Text>
+                <View className={`h-3 w-3 rounded-full ${editor.activeLabel === 'reagente' ? 'bg-dab' : 'border-2 border-hema'}`} />
+                <Text className={`font-mono-bold text-[11px] ${editor.activeLabel === 'reagente' ? 'text-warn' : 'text-sky-700'}`}>
+                  {editor.activeLabel === 'reagente' ? counts.reagents : counts.nonReagents}
+                </Text>
               </Pressable>
-              <Pressable onPress={() => setSheetOpen(true)} accessibilityLabel="Abrir painel" className={`h-11 flex-row items-center gap-1 rounded-xs bg-primary ${compact ? 'px-2.5' : 'px-3'}`}>
-                <Text className="font-sans-medium text-xs text-white">{compact ? 'Painel' : `Painel · ${counts.total} marcados`}</Text>
+              <Pressable onPress={() => setSheetOpen(true)} accessibilityLabel="Abrir painel de quantificação" className={`h-11 flex-row items-center gap-1 rounded-xs bg-primary ${compact ? 'px-2' : 'px-3'}`}>
+                <Text className="font-sans-semibold text-xs text-white">{compact ? formatKi67(ki67) : `${formatKi67(ki67)} · Painel`}</Text>
                 <ChevronUp size={14} color={colors.white} />
               </Pressable>
             </View>
@@ -269,14 +292,16 @@ export default function AnnotationScreen() {
             <>
               <Pressable className="absolute inset-0 z-40" onPress={() => setMenu(null)} accessibilityLabel="Fechar menu" />
               <View style={{ left: Math.min(Math.max(8, menu.x - 104), Math.max(8, area.w - 216)), top: menu.y + 230 > area.h ? Math.max(8, menu.y - 220) : menu.y + 12 }} className="absolute z-50 w-52 rounded-xs border border-line bg-white py-1 shadow-lg">
-                {menuMark.isAutoSuggested ? <Text className="border-b border-line px-3 py-1.5 font-sans text-xs text-ink-subtle">Sugestão automática</Text> : null}
+                <Text className="border-b border-surface-alt px-3 py-1 font-mono text-[10px] text-ink-subtle">
+                  Ações da marcação {menuMark.isAutoSuggested ? '· sugestão automática' : ''}
+                </Text>
                 {menuMark.isAutoSuggested ? (
-                  <MenuItem label="Aceitar sugestão" color={colors.success} icon={CircleDot} onPress={() => { editor.acceptSuggestion(menuMark.id); setMenu(null); }} />
+                  <MenuItem label="Aceitar sugestão" color="#047857" icon={CircleDot} onPress={() => { editor.acceptSuggestion(menuMark.id); setMenu(null); }} />
                 ) : null}
-                <MenuItem label="Mudar para reagente" color={colors.dab} icon={CircleDot} onPress={() => { editor.setMarkLabel(menuMark.id, 'reagente'); setMenu(null); }} />
-                <MenuItem label="Mudar para não reagente" color={colors.hema} icon={CircleDot} onPress={() => { editor.setMarkLabel(menuMark.id, 'nao_reagente'); setMenu(null); }} />
-                <View className="my-1 h-px bg-line" />
-                <MenuItem label="Apagar marcação" color={colors.danger} icon={Trash2} onPress={() => { editor.removeMark(menuMark.id); setMenu(null); }} />
+                <MenuItem label="Trocar para Reagente (●)" color={colors.dab} icon={CircleDot} onPress={() => { editor.setMarkLabel(menuMark.id, 'reagente'); setMenu(null); }} />
+                <MenuItem label="Trocar para Não Reagente (○)" color={colors.hema} icon={CircleDot} onPress={() => { editor.setMarkLabel(menuMark.id, 'nao_reagente'); setMenu(null); }} />
+                <View className="my-1 h-px bg-surface-alt" />
+                <MenuItem label="Excluir marcação" color={colors.danger} icon={Trash2} onPress={() => { editor.removeMark(menuMark.id); setMenu(null); }} />
               </View>
             </>
           ) : null}
@@ -284,46 +309,56 @@ export default function AnnotationScreen() {
 
         {/* Painel de quantificação (desktop) */}
         {sidePanel ? (
-          <View className="w-80 border-l border-line bg-white">
-            <View className="flex-row items-center justify-between border-b border-line px-4 py-3">
-              <Text className="font-sans-semibold text-sm text-ink">Contagem</Text>
+          <View className="w-96 border-l border-line bg-white shadow-xs">
+            <View className="flex-row items-center justify-between border-b border-line bg-surface-alt p-3.5">
+              <View className="flex-row items-center gap-2">
+                <Sliders size={16} color={colors.primary} />
+                <Text className="font-mono-bold text-xs uppercase tracking-wider text-primary">Quantificação Nuclear Ki-67</Text>
+              </View>
               <SaveIndicator status={editor.saveStatus} version={editor.activeVersion} offline={!isOnline} />
             </View>
             <ScrollView contentContainerClassName="p-4">{panel}</ScrollView>
-            <View className="gap-2 border-t border-line p-4">
-              <Button label="Finalizar análise" size="lg" onPress={() => setFinalizeOpen(true)} />
-              <Text className="font-sans text-xs leading-4 text-ink-subtle">Depois de finalizada, a análise não pode mais ser editada.</Text>
+            <View className="gap-2 border-t border-line bg-surface-alt p-3.5">
+              <Button label="Finalizar análise" icon={Send} size="lg" onPress={() => setFinalizeOpen(true)} />
+              <View className="flex-row items-center justify-between">
+                <View className="flex-row items-center gap-1">
+                  <Lock size={12} color="#059669" />
+                  <Text className="font-mono text-[10px] text-ink-subtle">Cada versão é selada com SHA-256</Text>
+                </View>
+                <Text className="font-mono text-[10px] text-ink-subtle">v{editor.activeVersion}</Text>
+              </View>
             </View>
           </View>
         ) : null}
       </View>
 
-      <Dialog visible={sheetOpen} onClose={() => setSheetOpen(false)} variant="sheet" title="Contagem" footer={<Button label="Finalizar análise" onPress={() => { setSheetOpen(false); setFinalizeOpen(true); }} />}>
+      <Dialog visible={sheetOpen} onClose={() => setSheetOpen(false)} variant="sheet" title="Painel de Quantificação Ki-67" footer={<Button label="Finalizar Análise" icon={Send} onPress={() => { setSheetOpen(false); setFinalizeOpen(true); }} />}>
         {panel}
       </Dialog>
 
       <Dialog
         visible={finalizeOpen}
         onClose={() => setFinalizeOpen(false)}
-        title="Finalizar a análise?"
-        subtitle={`${image.code} · versão ${editor.activeVersion + 1}`}
+        title="Confirmar finalização da análise?"
+        subtitle={`${image.code} · versão final v${editor.activeVersion + 1}`}
         icon={AlertTriangle}
         iconTone="warning"
         footer={
           <>
-            <Button label="Continuar editando" variant="outline" onPress={() => setFinalizeOpen(false)} />
-            <Button label="Finalizar" loading={editor.saveStatus === 'saving'} onPress={finalize} />
+            <Button label="Voltar e continuar editando" variant="outline" onPress={() => setFinalizeOpen(false)} />
+            <Button label="Sim, submeter para validação" icon={Send} loading={editor.saveStatus === 'saving'} onPress={finalize} />
           </>
         }
       >
         <Text className="font-sans text-xs leading-5 text-ink-muted">
-          As marcações ficam travadas e a análise passa a contar para a comparação com os outros avaliadores. Não dá para desfazer.
+          Ao finalizar, suas marcações serão <Text className="font-sans-semibold text-ink">congeladas de forma irreversível</Text> e entram na comparação cega das N análises.
         </Text>
-        <View className="gap-1.5 rounded-xs bg-surface p-3">
-          <KeyValue label="Reagentes" value={counts.reagents} />
-          <KeyValue label="Não reagentes" value={counts.nonReagents} />
-          <View className="border-t border-line pt-1.5">
-            <KeyValue label="Total" value={counts.total} />
+        <View className="gap-1 rounded-xs border border-line bg-surface-alt p-3">
+          <KeyValue label="Índice Ki-67 final:" value={formatKi67(ki67)} valueClassName="text-primary" />
+          <KeyValue label="Núcleos positivos (DAB ●):" value={counts.reagents} valueClassName="text-dab" />
+          <KeyValue label="Núcleos negativos (HEM ○):" value={counts.nonReagents} valueClassName="text-hema" />
+          <View className="mt-1 border-t border-line pt-1">
+            <KeyValue label="Total de células:" value={counts.total} />
           </View>
         </View>
       </Dialog>
@@ -333,7 +368,7 @@ export default function AnnotationScreen() {
         visible={!!editor.conflict}
         onClose={() => undefined}
         title="Esta análise foi salva em outro aparelho"
-        subtitle={`Versão no servidor: ${editor.conflict?.serverVersion ?? ''} · a sua partiu da ${editor.activeVersion}`}
+        subtitle={`Versão no servidor: v${editor.conflict?.serverVersion ?? ''} · sua base: v${editor.activeVersion}`}
         icon={AlertTriangle}
         iconTone="warning"
         footer={
@@ -358,7 +393,7 @@ export default function AnnotationScreen() {
         canRestore={!editor.readOnly}
         onRestore={async (n) => {
           const ok = await editor.restore(n);
-          if (ok) showToast(`A versão ${n} foi restaurada como uma versão nova.`);
+          if (ok) showToast(`Versão v${n} restaurada como nova versão.`);
           return ok;
         }}
       />
@@ -368,9 +403,9 @@ export default function AnnotationScreen() {
 
 function MenuItem({ label, color, icon: Icon, onPress }: { label: string; color: string; icon: LucideIcon; onPress: () => void }) {
   return (
-    <Pressable onPress={onPress} className="min-h-10 flex-row items-center gap-2 px-3 py-1.5 web:hover:bg-surface">
+    <Pressable onPress={onPress} className="min-h-10 flex-row items-center gap-1.5 px-3 py-1.5 web:hover:bg-surface-alt">
       <Icon size={14} color={color} />
-      <Text className="font-sans text-[13px] text-ink">{label}</Text>
+      <Text style={{ color }} className="font-sans-medium text-xs">{label}</Text>
     </Pressable>
   );
 }
