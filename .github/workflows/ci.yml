@@ -38,6 +38,13 @@ jobs:
       - name: Instalar dependências
         run: npm ci --no-audit --no-fund
 
+      # As versões de react, react-native e expo-* precisam casar com o Expo instalado.
+      # Offline: compara com a lista que vem no próprio pacote expo, sem depender da rede.
+      - name: Versões compatíveis com o Expo
+        run: npx expo install --check
+        env:
+          EXPO_OFFLINE: '1'
+
       - name: Lint
         run: npm run lint
 
@@ -72,11 +79,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
 
