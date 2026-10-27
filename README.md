@@ -113,7 +113,7 @@ Abra <http://localhost:8081>. Sem o arquivo `apps/mobile/.env`, o app entra em *
 
 O passo a passo completo, com o SQL do banco, o bucket do R2, o e-mail do código 2FA e o deploy das Edge Functions, está em [04 · Guia de configuração](docs/04-guia-de-configuracao.md). Em resumo:
 
-1. Crie o projeto no Supabase e rode `supabase/schema.sql` no SQL Editor.
+1. Crie o projeto no Supabase e aplique as migrações de `supabase/migrations/` (`npx supabase db push`).
 2. Crie o bucket privado no R2, com a política de CORS do guia.
 3. Configure os segredos e implante as funções de `supabase/functions/`.
 4. Copie `apps/mobile/.env.example` para `apps/mobile/.env`, preencha a URL e a chave **pública** do Supabase e rode `npm run dev:web` de novo.
@@ -139,7 +139,7 @@ Todos rodam na pasta `ki67`.
 | Sintoma | Solução |
 | --- | --- |
 | O app abre em modo demonstração mesmo com o `.env` | O arquivo precisa estar em `apps/mobile/.env`. Pare o Expo e rode `npm run dev:web` de novo |
-| A tela `/diagnostico` diz que o schema não foi aplicado | Rode `supabase/schema.sql` inteiro no SQL Editor do Supabase |
+| A tela `/diagnostico` diz que o banco não foi preparado | Aplique as migrações de `supabase/migrations/` (seção 1 do [guia](docs/04-guia-de-configuracao.md)) |
 | O código 2FA não chega | Sem domínio verificado, o Resend só envia para o e-mail da própria conta. Só em desenvolvimento: deixe `RESEND_API_KEY` vazia, use `DEV_LOG_2FA_CODE=true` e leia o código em Supabase > Edge Functions > Logs |
 | A imagem não abre ou o upload falha com erro de CORS | Confira a política de CORS do bucket no R2 e se a origem do app está em `APP_ORIGINS` |
 | "Project is incompatible with this version of Expo Go" | Atualize o Expo Go: o projeto usa o SDK 58 |
@@ -159,9 +159,7 @@ ki67/
 │   ├── src/data/ e src/services/ ← acesso ao Supabase e ao R2
 │   └── .env.example              ← URL e chave pública do Supabase
 ├── supabase/
-│   ├── schema.sql                ← banco completo: tabelas, RLS, triggers e RPCs
-│   ├── patch_fase4.sql           ← atualização para quem rodou a versão anterior
-│   ├── patch_idempotencia.sql    ← clique duplo não cria projeto ou lote repetido
+│   ├── migrations/               ← banco em migrações versionadas: tabelas, RLS, triggers e RPCs
 │   ├── tests/database/           ← testes pgTAP do banco
 │   ├── bootstrap_admin.sql       ← cria o primeiro admin
 │   └── functions/                ← Edge Functions: login, 2FA, usuários e R2

@@ -5,9 +5,11 @@ Passo a passo para sair do modo demonstração e usar dados reais. Sem o `.env` 
 ## 1. Supabase: banco
 
 1. Crie um projeto em <https://supabase.com> (região **São Paulo**). Anote a senha do banco.
-2. Abra **SQL Editor > New query**, cole todo o arquivo `supabase/schema.sql` e clique em **Run**.
-   - Já rodou o `schema.sql` antigo (Fase 1)? Rode só o `supabase/patch_fase4.sql`.
-   - Já tem o banco e ele ainda não tem a coluna `request_id` em `projects` e `batches`? Rode o `supabase/patch_idempotencia.sql` (impede projeto e lote repetidos com clique duplo).
+2. Aplique as migrações de `supabase/migrations/`, em ordem. Escolha um caminho:
+   - **Supabase CLI (recomendado):** `npx supabase link --project-ref <ref-do-projeto>` e depois `npx supabase db push`. O CLI guarda quais migrações já rodaram e só aplica as novas.
+   - **SQL Editor:** abra **SQL Editor > New query**, cole cada arquivo de `supabase/migrations/` em ordem de nome, uma vez cada, e clique em **Run**.
+   - **Já tem o banco criado pelo antigo `schema.sql` (com os patches)?** Ele é igual à migração base. Antes do primeiro `db push`, marque a base como aplicada, sem rodá-la: `npx supabase migration repair --status applied 20261026120000`. Depois disso, o `db push` só aplica as migrações novas.
+   - **Para testar localmente (Docker):** `npx supabase db start` e `npx supabase db reset --local` criam o banco do zero com as migrações; `npx supabase test db` roda os testes pgTAP.
 3. Em **Authentication > Sign In / Providers**, desligue **Allow new users to sign up** (não há autocadastro, RF-04).
 4. Em **Authentication > URL Configuration**, preencha:
    - **Site URL:** `http://localhost:8081`
@@ -65,7 +67,7 @@ npm install
 npm run dev:web
 ```
 
-3. Abra <http://localhost:8081/diagnostico> para conferir a conexão: a tela diz se o `.env` foi lido e se o `schema.sql` já foi aplicado.
+3. Abra <http://localhost:8081/diagnostico> para conferir a conexão: a tela diz se o `.env` foi lido e se as migrações do banco já foram aplicadas.
 4. Abra <http://localhost:8081> e entre com o admin. O código 2FA chega por e-mail.
 5. Para o Android, rode `npm run dev:android` com o emulador aberto, ou escaneie o QR code com o Expo Go.
 
