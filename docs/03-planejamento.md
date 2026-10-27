@@ -174,6 +174,7 @@ Seguimos [Conventional Commits](https://www.conventionalcommits.org/pt-br/v1.0.0
 - Cite o requisito entre parênteses quando o commit o implementa ou altera.
 - Mudança que quebra compatibilidade leva `!` depois do tipo: `feat(banco)!: save_analysis_version passa a exigir versão base`.
 - Mudança de comportamento leva o documento junto, no mesmo commit ou no mesmo PR.
+- **O CI confere** as mensagens dos commits de cada PR (`commitlint.config.mjs`). Tipo inválido, descrição vazia, em maiúsculas, com ponto final ou cabeçalho com mais de 100 caracteres **recusam** o PR. Escopo fora da lista acima e falta do ID da tarefa só geram **aviso**. Para conferir antes de subir: `npx @commitlint/cli@21.2.3 --config commitlint.config.mjs --from origin/main`.
 
 ## 6. Definition of Done
 

@@ -1,0 +1,6 @@
+# R-03: quem é chamado para revisar cada parte. Vale a última regra que casar.
+# Por enquanto o dono do repositório revisa tudo; quando o grupo distribuir as
+# frentes do docs/06 (A: supabase/, B: apps/mobile/, C: docs/ e .github/),
+# detalhamos por pasta aqui.
+
+* @Matheus-Lordron

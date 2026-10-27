@@ -65,6 +65,30 @@ jobs:
           docker run --rm -v "$PWD:/repo" ghcr.io/gitleaks/gitleaks:v8.28.0
           git /repo --redact --no-banner --exit-code 1
 
+  # R-03: mensagens dos commits do PR no padrão do docs/03 (commitlint.config.mjs).
+  commits:
+    name: Mensagens de commit (commitlint)
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Testes da configuração
+        run: node --test .github/tests/commitlint.test.mjs
+
+      - name: Commits do pull request
+        run: >
+          npx --yes @commitlint/cli@21.2.3 --config commitlint.config.mjs --verbose
+          --from ${{ github.event.pull_request.base.sha }}
+          --to ${{ github.event.pull_request.head.sha }}
+
   # R-02: o CI falha com vulnerabilidade crítica; alta e moderada aparecem no resumo.
   dependencias:
     name: Dependências (npm audit)
