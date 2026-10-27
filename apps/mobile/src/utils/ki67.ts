@@ -1,6 +1,6 @@
 // Regras de negócio do índice Ki-67, migradas sem alteração do protótipo do
 // AI Studio. O banco recalcula contagens e índice com a mesma fórmula
-// (private.ki67_index em supabase/schema.sql); mantenha os dois em sincronia.
+// (private.ki67_index em supabase/migrations); mantenha os dois em sincronia.
 import type { AnnotationMark } from '@/types';
 
 /**

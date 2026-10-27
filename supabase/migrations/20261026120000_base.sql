@@ -1,11 +1,15 @@
 -- =============================================================================
--- Segmenta Studio · Ki-67 IHC — esquema do banco no Supabase (Fase 1)
+-- Segmenta Studio · Ki-67 IHC — migração base do banco no Supabase (R-04)
 --
--- COMO USAR
---   1. Projeto Supabase NOVO (região São Paulo, PostgreSQL 17).
---   2. Painel > SQL Editor > New query > cole este arquivo inteiro > Run.
---      Rode UMA vez: o script cria tudo do zero e não é idempotente.
---   3. Depois rode supabase/bootstrap_admin.sql para criar o primeiro admin.
+-- É o antigo supabase/schema.sql, que já incluía patch_fase4.sql e
+-- patch_idempotencia.sql. Daqui em diante, toda mudança no banco é uma
+-- migração NOVA nesta pasta; esta não é editada depois de aplicada.
+--
+-- COMO USAR (detalhes em docs/04-guia-de-configuracao.md)
+--   • Local (Docker): npx supabase db reset --local
+--   • Projeto Supabase NOVO: npx supabase link e npx supabase db push,
+--     ou cole as migrações no SQL Editor, em ordem, uma vez cada.
+--   • Depois rode supabase/bootstrap_admin.sql para criar o primeiro admin.
 --
 -- DECISÃO DE ARQUITETURA (substitui a D3 de docs/02-arquitetura.md)
 --   O app fala direto com o Supabase (Auth + PostgREST) e as regras de negócio
