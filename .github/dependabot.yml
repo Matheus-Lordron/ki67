@@ -15,10 +15,22 @@ updates:
     groups:
       menores:
         update-types: [minor, patch]
-    # Versão maior do Expo/React Native se atualiza com `npx expo install --fix`, que casa as versões.
     ignore:
+      # Versão maior de qualquer pacote: atualização planejada, não automática.
       - dependency-name: '*'
         update-types: ['version-update:semver-major']
+      # O Expo trava a versão destes pacotes; eles sobem juntos com `npx expo install --fix`
+      # (o CI recusa versão fora da lista do Expo).
+      - dependency-name: 'expo'
+      - dependency-name: 'expo-*'
+      - dependency-name: 'babel-preset-expo'
+      - dependency-name: 'jest-expo'
+      - dependency-name: 'react'
+      - dependency-name: 'react-dom'
+      - dependency-name: 'react-native'
+      - dependency-name: 'react-native-*'
+      - dependency-name: '@react-native-async-storage/async-storage'
+      - dependency-name: '@react-native-community/netinfo'
 
   - package-ecosystem: github-actions
     directory: /

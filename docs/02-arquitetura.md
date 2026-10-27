@@ -107,7 +107,7 @@ flowchart LR
 ```text
 ki67/
 ├── .github/
-│   ├── workflows/ci.yml              # CI: lint, tipos, testes, build web, gitleaks, npm audit e commitlint
+│   ├── workflows/ci.yml              # CI: versões do Expo, lint, tipos, testes, build web, gitleaks, npm audit e commitlint
 │   ├── dependabot.yml                # atualizações semanais agrupadas (npm e Actions)
 │   ├── pull_request_template.md      # checklist da Definition of Done em todo PR
 │   ├── CODEOWNERS                    # quem é chamado para revisar cada pasta
