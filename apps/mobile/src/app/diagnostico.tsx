@@ -17,11 +17,11 @@ async function checkSupabase(): Promise<Check> {
     return { status: 'warn', message: 'Preencha apps/mobile/.env (veja .env.example) e reinicie o Expo.' };
   }
   // Sem login, o banco deve RECUSAR a chamada (anon não executa RPCs): isso
-  // prova que o servidor responde e que o schema.sql foi aplicado.
+  // prova que o servidor responde e que as migrações do banco foram aplicadas.
   const { error } = await supabase.rpc('my_session');
   if (!error) return { status: 'ok', message: 'Conectado ao Supabase.' };
   if (error.code === '42501') return { status: 'ok', message: 'Conectado. Schema aplicado e acesso anônimo bloqueado, como esperado.' };
-  if (error.code === 'PGRST202') return { status: 'error', message: 'Conectado, mas o schema.sql ainda não foi rodado no SQL Editor.' };
+  if (error.code === 'PGRST202') return { status: 'error', message: 'Conectado, mas as migrações do banco ainda não foram aplicadas (docs/04, seção 1).' };
   return { status: 'error', message: `Sem conexão: ${error.message}` };
 }
 

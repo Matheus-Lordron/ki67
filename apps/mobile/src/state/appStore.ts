@@ -2,7 +2,7 @@
  * Estado global do app (porte do AppContext do protótipo para Zustand).
  *
  * Dois modos (src/data/mode.ts):
- *  - 'supabase': cada ação chama o banco (RPCs de supabase/schema.sql) ou uma
+ *  - 'supabase': cada ação chama o banco (RPCs de supabase/migrations) ou uma
  *    Edge Function e depois recarrega os dados do papel ativo (refresh). O banco
  *    aplica o RLS e grava o log de auditoria com hash SHA-256 encadeado.
  *  - 'demo': dados de src/data/mockData.ts só na memória (sem backend).

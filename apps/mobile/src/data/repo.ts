@@ -1,6 +1,6 @@
 /**
  * Acesso ao Supabase (Fase 4). Toda leitura passa pelo RLS com o token do
- * usuário; toda escrita sensível passa pelas RPCs de supabase/schema.sql, que
+ * usuário; toda escrita sensível passa pelas RPCs de supabase/migrations, que
  * também gravam o log de auditoria com hash SHA-256 encadeado.
  */
 import type { PostgrestError } from '@supabase/supabase-js';

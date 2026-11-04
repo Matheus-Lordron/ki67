@@ -57,6 +57,28 @@ jobs:
       - name: Build web
         run: npx expo export --platform web --output-dir dist
 
+  # R-04: as migrações sobem num banco limpo e os testes pgTAP passam.
+  # Supabase local no runner (Docker); nada fala com o Supabase real.
+  banco:
+    name: Banco (migrações e pgTAP)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+
+      - name: Subir o Postgres do Supabase
+        run: npx --yes supabase@2.122.0 db start
+
+      - name: Aplicar as migrações num banco limpo
+        run: npx --yes supabase@2.122.0 db reset --local
+
+      - name: Testes do banco (pgTAP)
+        run: npx --yes supabase@2.122.0 test db
+
   # R-02: nenhum segredo no histórico. Varre todos os commits, não só o diff.
   segredos:
     name: Segredos (gitleaks)

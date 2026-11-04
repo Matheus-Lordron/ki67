@@ -96,9 +96,9 @@ flowchart LR
 
 | Peça | Onde | O que faz | Requisitos |
 | --- | --- | --- | --- |
-| Políticas RLS | `supabase/schema.sql`, seção 9 | Cada papel só lê o que pode: o avaliador, as próprias análises; o gestor, os próprios projetos; o validador, só imagens prontas que ele não anotou. Sem 2FA confirmado na sessão, nada é liberado | RF-26 a RF-28, RN-08 |
-| Funções RPC | `supabase/schema.sql`, seção 7 | Salvar, finalizar e restaurar versões, atribuir, registrar upload, abrir comparação e validar. O app não tem `INSERT` nem `UPDATE` direto nessas tabelas | RF-10, RF-21, RF-30 a RF-34 |
-| Triggers | `supabase/schema.sql`, seções 5 e 6 | Gestor não avalia no próprio projeto (RN-07), N avaliadores por imagem (RF-29), transições de status, versões e log imutáveis, bloqueio de exclusão | RF-33, RF-38, RN-06 |
+| Políticas RLS | migração base, seção 9 | Cada papel só lê o que pode: o avaliador, as próprias análises; o gestor, os próprios projetos; o validador, só imagens prontas que ele não anotou. Sem 2FA confirmado na sessão, nada é liberado | RF-26 a RF-28, RN-08 |
+| Funções RPC | migração base, seção 7 | Salvar, finalizar e restaurar versões, atribuir, registrar upload, abrir comparação e validar. O app não tem `INSERT` nem `UPDATE` direto nessas tabelas | RF-10, RF-21, RF-30 a RF-34 |
+| Triggers | migração base, seções 5 e 6 | Gestor não avalia no próprio projeto (RN-07), N avaliadores por imagem (RF-29), transições de status, versões e log imutáveis, bloqueio de exclusão | RF-33, RF-38, RN-06 |
 | Log com hash encadeado | trigger `audit_logs_chain` | Cada registro guarda o hash do anterior; `verify_audit_chain()` aponta qualquer quebra | RF-37, RF-38 |
 | Edge Functions | `supabase/functions/` | Login com limite de tentativas e envio do código 2FA, criação de usuários pelo admin e URLs assinadas do R2 | RF-01, RF-02, RF-04, RF-08, RNF-06 |
 
@@ -140,9 +140,7 @@ ki67/
 │       │   └── theme/                # cores e fontes
 │       └── .env.example              # URL e chave pública do Supabase
 ├── supabase/
-│   ├── schema.sql                    # banco completo: tabelas, RLS, triggers e RPCs
-│   ├── patch_fase4.sql               # atualização para quem rodou o schema da Fase 1
-│   ├── patch_idempotencia.sql        # request_id: clique duplo não cria projeto ou lote repetido
+│   ├── migrations/                   # banco em migrações versionadas (a base é o antigo schema.sql)
 │   ├── tests/database/               # testes pgTAP (npx supabase test db, com Docker)
 │   ├── bootstrap_admin.sql           # transforma uma conta em admin
 │   ├── config.toml                   # configuração do Supabase CLI e das funções
@@ -162,9 +160,9 @@ ki67/
 | Como uma linha do banco vira tipo do app | `apps/mobile/src/data/mappers.ts` |
 | O que fica salvo no aparelho | `apps/mobile/src/storage/` |
 | Cores e fontes | `apps/mobile/tailwind.config.js` e `apps/mobile/src/theme/` |
-| Uma regra de negócio (quem pode ver ou fazer o quê) | `supabase/schema.sql`: a política RLS da tabela ou a função RPC da ação |
+| Uma regra de negócio (quem pode ver ou fazer o quê) | Uma migração nova que altera a política RLS da tabela ou a função RPC da ação |
 | O limiar de cor da pré-anotação | `THRESHOLDS` em `apps/mobile/src/features/anotacao/colorThreshold.ts` |
-| Uma tabela ou coluna | `supabase/schema.sql` e um arquivo de atualização novo, como o `patch_fase4.sql`, para quem já rodou o schema |
+| Uma tabela ou coluna | Uma migração **nova** em `supabase/migrations/` (`npx supabase migration new <nome>`), com teste pgTAP em `supabase/tests/database/`. Migração já aplicada não se edita |
 | O índice, a concordância ou o formato Labelme/CSV | `apps/mobile/src/utils/ki67.ts` |
 | Login, 2FA, cadastro de usuário ou URLs do R2 | `supabase/functions/<nome-da-função>/index.ts` |
 | Uma variável de ambiente | `apps/mobile/.env.example` (app) ou `supabase/functions/.env.example` (funções), com comentário explicando o valor |
@@ -457,7 +455,7 @@ O status da imagem só muda dentro das funções RPC: o app não tem permissão 
 
 ## 8. Modelo de dados
 
-O esquema completo está em `supabase/schema.sql`. Tabelas e colunas estão em inglês, espelhando os tipos do app; os valores dos enums estão em português. As colunas de autoria (`created_by`, `assigned_by`, `author_id`) também apontam para `profiles`, mas essas ligações ficaram fora do desenho.
+O esquema completo está nas migrações de `supabase/migrations/` (a base, `20261026120000_base.sql`, é o antigo `schema.sql`). Tabelas e colunas estão em inglês, espelhando os tipos do app; os valores dos enums estão em português. As colunas de autoria (`created_by`, `assigned_by`, `author_id`) também apontam para `profiles`, mas essas ligações ficaram fora do desenho.
 
 ```mermaid
 erDiagram
@@ -616,7 +614,7 @@ Garantias que o próprio banco impõe:
 
 Não há rotas REST próprias. O app usa as tabelas e views pelo PostgREST (sempre filtradas pelo RLS), as funções RPC abaixo e as Edge Functions. "Gestor" sempre significa o gestor **do projeto** daquele recurso.
 
-**Funções RPC** (`supabase/schema.sql`):
+**Funções RPC** (migração base, `supabase/migrations/20261026120000_base.sql`):
 
 | Função | Quem pode | O que faz | Requisitos |
 | --- | --- | --- | --- |
@@ -652,7 +650,7 @@ O cegamento (RF-26 a RF-28) é garantido em quatro níveis, do mais externo ao m
 1. **Quem é você.** Sessão do Supabase Auth (JWT de curta duração com refresh token rotativo) que só vale depois do código 2FA. O app encerra a sessão depois de 30 min sem atividade (RF-05).
 2. **O que você pode fazer.** O app só lê as tabelas diretamente. As únicas escritas diretas são em perfis, projetos, lotes e labels, coluna por coluna e ainda filtradas pelo RLS. Todo o resto (imagens, análises, versões, validação e log) passa por uma função RPC que confere o papel e o dono.
 3. **O que você pode ver.** As políticas RLS filtram cada consulta pelo usuário do JWT: o avaliador só vê as próprias análises, o gestor só os próprios projetos, e o validador só vê imagens prontas que ele não anotou. A comparação entrega as análises como A, B, C, sem nomes. Pedir a análise de outra pessoa devolve **NOT_FOUND**, para não confirmar que ela existe, e grava `ACESSO_NEGADO` no log.
-4. **Como provamos.** Os testes do banco (`schema.sql` rodado num PostgreSQL local, com cerca de 90 verificações) cobrem cegamento, WORM, RN-07, RF-29 e a cadeia do log. Levar esses testes para o CI é a próxima etapa.
+4. **Como provamos.** Os testes do banco (as migrações aplicadas num PostgreSQL local, com cerca de 90 verificações) cobrem cegamento, WORM, RN-07, RF-29 e a cadeia do log. Levar esses testes para o CI é a próxima etapa.
 
 ### O que o app recebe e o que fica no servidor
 

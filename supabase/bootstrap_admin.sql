@@ -1,5 +1,5 @@
 -- =============================================================================
--- Primeiro administrador (rode UMA vez, depois do schema.sql)
+-- Primeiro administrador (rode UMA vez, depois de aplicar as migrações)
 --
 -- 1. Painel do Supabase > Authentication > Users > Add user > Create new user
 --    Informe o seu e-mail e uma senha forte e marque "Auto Confirm User".

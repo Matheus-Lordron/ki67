@@ -1,4 +1,4 @@
-// Espelho de supabase/schema.sql: enums, linhas das tabelas e views, e o
+// Espelho de supabase/migrations: enums, linhas das tabelas e views, e o
 // formato de resposta de cada RPC. Ao mudar o SQL, mude este arquivo junto.
 // Datas chegam como string ISO 8601 (UTC).
 

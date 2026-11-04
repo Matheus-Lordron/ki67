@@ -6,7 +6,7 @@ import { authStorage } from '@/storage/authStorage';
 import type { RpcName } from '@/types/database';
 
 // Cliente único do Supabase. A chave publicável só dá acesso ao que as
-// políticas RLS de supabase/schema.sql liberam para o usuário logado.
+// políticas RLS de supabase/migrations liberam para o usuário logado.
 export const supabase = createClient(
   // Valores fictícios só para o app abrir e mostrar como configurar o .env.
   isSupabaseConfigured ? env.supabaseUrl : 'http://localhost:54321',
