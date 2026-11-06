@@ -79,3 +79,24 @@ for (const [motivo, pedido] of Object.entries({
     restaurar();
   });
 }
+
+// R-11 (S1): a URL de envio amarra tamanho, tipo e o SHA-256 informado. O R2 recusa um PUT
+// com qualquer um deles diferente do que foi assinado.
+const hexParaBase64 = (hex: string) => btoa(String.fromCharCode(...hex.match(/../g)!.map((b) => parseInt(b, 16))));
+
+Deno.test('a URL assinada carrega Content-Length, Content-Type e o checksum SHA-256 (R-11)', async () => {
+  simular(tokenValido, tabela('batches', [lote(USUARIO.id)]), tabela('image_versions', []));
+  const body = await (await handler(post(PEDIDO, comToken))).json();
+  const assinados = new URL(body.upload_url).searchParams.get('X-Amz-SignedHeaders')!.split(';');
+  for (const h of ['content-length', 'content-type', 'host', 'x-amz-checksum-sha256']) {
+    assert(assinados.includes(h), `${h} precisa estar entre os cabeçalhos assinados (${assinados.join(';')})`);
+  }
+  restaurar();
+});
+
+Deno.test('devolve ao app os cabeçalhos que o PUT precisa mandar, com o checksum em base64 (R-11)', async () => {
+  simular(tokenValido, tabela('batches', [lote(USUARIO.id)]), tabela('image_versions', []));
+  const body = await (await handler(post(PEDIDO, comToken))).json();
+  assertEquals(body.headers, { 'Content-Type': 'image/png', 'x-amz-checksum-sha256': hexParaBase64(SHA) });
+  restaurar();
+});
