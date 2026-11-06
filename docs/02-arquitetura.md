@@ -165,7 +165,7 @@ ki67/
 | O limiar de cor da pré-anotação | `THRESHOLDS` em `apps/mobile/src/features/anotacao/colorThreshold.ts` |
 | Uma tabela ou coluna | Uma migração **nova** em `supabase/migrations/` (`npx supabase migration new <nome>`), com teste pgTAP em `supabase/tests/database/`. Migração já aplicada não se edita |
 | O índice, a concordância ou o formato Labelme/CSV | `apps/mobile/src/utils/ki67.ts` |
-| Login, 2FA, cadastro de usuário ou URLs do R2 | `supabase/functions/<nome-da-função>/handler.ts`, com teste em `supabase/functions/tests/<nome-da-função>.test.ts`. Para rodar: `deno test --allow-env --allow-net=none tests/` dentro de `supabase/functions` (ou pela imagem Docker `denoland/deno`) |
+| Login, 2FA, cadastro de usuário ou URLs do R2 | `supabase/functions/<nome-da-função>/handler.ts`, com teste em `supabase/functions/tests/<nome-da-função>.test.ts`. Para rodar: `deno test --node-modules-dir=none --allow-env --allow-net=none tests/` dentro de `supabase/functions` (ou pela imagem Docker `denoland/deno`) |
 | Uma variável de ambiente | `apps/mobile/.env.example` (app) ou `supabase/functions/.env.example` (funções), com comentário explicando o valor |
 
 ## 5. Mapa de navegação
