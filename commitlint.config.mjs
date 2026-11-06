@@ -25,6 +25,11 @@ export default {
   plugins: [
     {
       rules: {
+        // Aviso, não recusa: a descrição pode começar com nome próprio ou sigla (Deno, CORS, URL).
+        'descricao-minuscula': ({ subject }) => [
+          !subject || !/^[A-ZÀ-Ý]/.test(subject),
+          'comece a descrição com minúscula, a não ser que seja nome próprio ou sigla',
+        ],
         'id-da-tarefa': ({ header, body }) => [
           ID_TAREFA.test(`${header}\n${body ?? ''}`),
           'cite o ID da tarefa ou do requisito, ex.: (R-05) ou (RF-14)',
@@ -40,7 +45,8 @@ export default {
     'scope-enum': [1, 'always', ESCOPOS],
     'subject-empty': [2, 'never'],
     'subject-full-stop': [2, 'never', '.'],
-    'subject-case': [2, 'never', ['sentence-case', 'start-case', 'pascal-case', 'upper-case']],
+    'subject-case': [2, 'never', ['upper-case']],
+    'descricao-minuscula': [1, 'always'],
     'header-max-length': [2, 'always', 100],
     'body-leading-blank': [1, 'always'],
     'footer-leading-blank': [1, 'always'],

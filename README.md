@@ -162,7 +162,7 @@ ki67/
 │   ├── migrations/               ← banco em migrações versionadas: tabelas, RLS, triggers e RPCs
 │   ├── tests/database/           ← testes pgTAP do banco
 │   ├── bootstrap_admin.sql       ← cria o primeiro admin
-│   └── functions/                ← Edge Functions: login, 2FA, usuários e R2
+│   └── functions/                ← Edge Functions: login, 2FA, usuários e R2 (testes em functions/tests/)
 └── docs/
     ├── 01-visao-e-requisitos.md  ← problema, RF, RNF, critérios e escopo
     ├── 02-arquitetura.md         ← camadas, navegação, sequências e dados

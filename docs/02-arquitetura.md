@@ -144,7 +144,8 @@ ki67/
 │   ├── tests/database/               # testes pgTAP (npx supabase test db, com Docker)
 │   ├── bootstrap_admin.sql           # transforma uma conta em admin
 │   ├── config.toml                   # configuração do Supabase CLI e das funções
-│   └── functions/                    # Edge Functions (Deno) e o .env.example delas
+│   └── functions/                    # Edge Functions (Deno): <nome>/handler.ts tem a regra, index.ts só sobe o servidor
+│       └── tests/                    # deno test com Supabase, R2 e Resend simulados (_fake.ts)
 ├── docs/                             # esta documentação
 └── package.json                      # scripts da raiz (delegam para apps/mobile)
 ```
@@ -164,7 +165,7 @@ ki67/
 | O limiar de cor da pré-anotação | `THRESHOLDS` em `apps/mobile/src/features/anotacao/colorThreshold.ts` |
 | Uma tabela ou coluna | Uma migração **nova** em `supabase/migrations/` (`npx supabase migration new <nome>`), com teste pgTAP em `supabase/tests/database/`. Migração já aplicada não se edita |
 | O índice, a concordância ou o formato Labelme/CSV | `apps/mobile/src/utils/ki67.ts` |
-| Login, 2FA, cadastro de usuário ou URLs do R2 | `supabase/functions/<nome-da-função>/index.ts` |
+| Login, 2FA, cadastro de usuário ou URLs do R2 | `supabase/functions/<nome-da-função>/handler.ts`, com teste em `supabase/functions/tests/<nome-da-função>.test.ts`. Para rodar: `deno test --node-modules-dir=none --allow-env --allow-net=none tests/` dentro de `supabase/functions` (ou pela imagem Docker `denoland/deno`) |
 | Uma variável de ambiente | `apps/mobile/.env.example` (app) ou `supabase/functions/.env.example` (funções), com comentário explicando o valor |
 
 ## 5. Mapa de navegação
