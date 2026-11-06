@@ -650,7 +650,7 @@ O cegamento (RF-26 a RF-28) é garantido em quatro níveis, do mais externo ao m
 1. **Quem é você.** Sessão do Supabase Auth (JWT de curta duração com refresh token rotativo) que só vale depois do código 2FA. O app encerra a sessão depois de 30 min sem atividade (RF-05).
 2. **O que você pode fazer.** O app só lê as tabelas diretamente. As únicas escritas diretas são em perfis, projetos, lotes e labels, coluna por coluna e ainda filtradas pelo RLS. Todo o resto (imagens, análises, versões, validação e log) passa por uma função RPC que confere o papel e o dono.
 3. **O que você pode ver.** As políticas RLS filtram cada consulta pelo usuário do JWT: o avaliador só vê as próprias análises, o gestor só os próprios projetos, e o validador só vê imagens prontas que ele não anotou. A comparação entrega as análises como A, B, C, sem nomes. Pedir a análise de outra pessoa devolve **NOT_FOUND**, para não confirmar que ela existe, e grava `ACESSO_NEGADO` no log.
-4. **Como provamos.** Os testes do banco (as migrações aplicadas num PostgreSQL local, com cerca de 90 verificações) cobrem cegamento, WORM, RN-07, RF-29 e a cadeia do log. Levar esses testes para o CI é a próxima etapa.
+4. **Como provamos.** A bateria pgTAP em `supabase/tests/database/` (104 verificações, R-05) roda no CI a cada pull request, num Supabase local criado do zero pelas migrações. Ela cobre o RLS de cada papel (avaliador, validador, gestor, admin), o bloqueio sem 2FA, a imutabilidade de versões, resultado e log, RN-07, RF-29, RN-05, RN-08 e `verify_audit_chain()`. Para rodar localmente: `npx supabase db reset --local` e `npx supabase test db`.
 
 ### O que o app recebe e o que fica no servidor
 
