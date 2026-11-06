@@ -639,7 +639,7 @@ Não há rotas REST próprias. O app usa as tabelas e views pelo PostgREST (semp
 | `auth-login` | Público | Limite de 5 falhas por e-mail a cada 15 min, confere a senha, emite e envia o código 2FA | RF-01, RF-02, RNF-06 |
 | `auth-resend-2fa` | Sessão sem 2FA | Reenvia o código, respeitando o limite de códigos por 15 min | RF-02 |
 | `admin-create-user` | Admin | Cria a conta com papéis e envia o link para a pessoa definir a senha | RF-04, RF-07 |
-| `r2-upload-url` | Gestor | Confere lote e duplicidade e devolve a URL de PUT | RF-08, RF-11 |
+| `r2-upload-url` | Gestor | Confere lote e duplicidade e devolve a URL de PUT, assinada com o tamanho, o tipo e o SHA-256 do arquivo (R-11) | RF-08, RF-11 |
 | `r2-download-url` | Quem pode ver a imagem | Lê a versão com o JWT do usuário (RLS) e devolve URLs de GET de 5 min | RF-28, RNF-06 |
 
 Nenhuma função exclui usuários, projetos, análises, versões ou logs (RN-06).

@@ -5,7 +5,7 @@
 // A chave no bucket é derivada do hash: projects/<projeto>/batches/<lote>/<sha256>.<ext>
 // (mesmo conteúdo = mesma chave, então um reenvio nunca troca o original).
 import { handle, HttpError, json, readJson } from '../_shared/http.ts';
-import { presign, ttl } from '../_shared/r2.ts';
+import { presign, sha256Base64, ttl } from '../_shared/r2.ts';
 import { requireUser, serviceClient, userClient } from '../_shared/supabase.ts';
 
 const EXT: Record<string, string> = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/tiff': 'tif' };
@@ -42,6 +42,10 @@ export const handler = handle(async (req) => {
   }
 
   const storageKey = `projects/${batch.project_id}/batches/${batch.id}/${sha}.${EXT[mime]}`;
-  const uploadUrl = await presign('PUT', storageKey, ttl('R2_UPLOAD_URL_TTL', 600));
-  return json(req, { duplicate: false, upload_url: uploadUrl, storage_key: storageKey });
+  // R-11: tamanho, tipo e SHA-256 entram na assinatura. O R2 recusa o PUT de um arquivo
+  // diferente do declarado; o app manda `headers` no PUT (o navegador põe o Content-Length).
+  const headers = { 'Content-Type': mime, 'x-amz-checksum-sha256': sha256Base64(sha) };
+  const uploadUrl = await presign('PUT', storageKey, ttl('R2_UPLOAD_URL_TTL', 600), {},
+    { ...headers, 'Content-Length': String(size) });
+  return json(req, { duplicate: false, upload_url: uploadUrl, storage_key: storageKey, headers });
 });
