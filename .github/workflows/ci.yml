@@ -10,9 +10,10 @@ on:
 permissions:
   contents: read
 
+# Em PR, um push novo cancela a execução anterior; na main, toda execução vai até o fim.
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   app:
