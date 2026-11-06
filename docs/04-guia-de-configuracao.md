@@ -22,8 +22,9 @@ Passo a passo para sair do modo demonstração e usar dados reais. Sem o `.env` 
 1. Cloudflare > **R2 > Create bucket** com o nome `ki67-imagens`. Mantenha o bucket privado, sem domínio público.
 2. No bucket, abra **Settings > CORS policy** e cole:
    ```json
-   [{ "AllowedOrigins": ["http://localhost:8081"], "AllowedMethods": ["GET", "PUT", "HEAD"], "AllowedHeaders": ["content-type"], "MaxAgeSeconds": 3600 }]
+   [{ "AllowedOrigins": ["http://localhost:8081"], "AllowedMethods": ["GET", "PUT", "HEAD"], "AllowedHeaders": ["content-type", "x-amz-checksum-sha256"], "MaxAgeSeconds": 3600 }]
    ```
+   O `x-amz-checksum-sha256` é obrigatório desde o R-11: a URL de envio amarra o tamanho, o tipo e o SHA-256 do arquivo, e o R2 recusa um arquivo diferente do declarado. **Num bucket que já existe, atualize a política antes de implantar a nova `r2-upload-url`**, senão o envio pela versão web falha. O app no Android e no iPhone não passa pelo CORS.
 3. Em **R2 > Manage API tokens > Create API token**, dê a permissão **Object Read & Write** só nesse bucket. Anote o **Access Key ID** e o **Secret Access Key**. O **Account ID** aparece na página inicial do R2.
 
 ## 3. E-mail do código 2FA (Resend)
