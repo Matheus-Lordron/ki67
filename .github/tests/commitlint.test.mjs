@@ -54,6 +54,14 @@ test('commit sem ID da tarefa passa, mas com aviso', () => {
   assert.match(r.out, /ID da tarefa/);
 });
 
+test('descrição que começa com nome próprio ou sigla passa, mas com aviso', () => {
+  for (const msg of ['ci: Deno ignora o package.json da raiz (R-06)', 'fix(funcoes): CORS recusa origem desconhecida (R-10)']) {
+    const r = lint(msg);
+    assert.ok(r.ok, r.out);
+    assert.match(r.out, /comece a descrição com minúscula/);
+  }
+});
+
 test('escopo fora da lista do docs/03 passa, mas com aviso', () => {
   const r = lint('fix(telas): corrige o login (RF-01)');
   assert.ok(r.ok, r.out);
