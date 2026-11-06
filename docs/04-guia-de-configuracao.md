@@ -44,6 +44,9 @@ npx supabase link --project-ref SEU_PROJECT_REF
 
 Copie `supabase/functions/.env.example` para `supabase/functions/.env`, preencha as chaves do R2 e do Resend e rode:
 
+> **`APP_ORIGINS` é obrigatório para a versão web.** Sem ele, as funções recusam com 403 toda requisição de navegador (CORS fechado por padrão, R-10). Liste os endereços exatos do app, separados por vírgula: `http://localhost:8081,https://ki67.seu-dominio`. O app no Android e no iPhone não manda `Origin` e funciona mesmo sem a variável. `*` libera qualquer site e só deve ser usado de propósito, em teste.
+
+
 ```bash
 npx supabase secrets set --env-file supabase/functions/.env
 ```

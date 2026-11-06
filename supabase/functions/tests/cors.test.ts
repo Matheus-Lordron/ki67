@@ -2,7 +2,7 @@
 // O app nativo (Android e iOS) não manda Origin e continua funcionando.
 import './_fake.ts';
 import { assertEquals } from 'jsr:@std/assert@1';
-import { handle } from '../_shared/http.ts';
+import { handle, json } from '../_shared/http.ts';
 
 const ORIGINAL = Deno.env.get('APP_ORIGINS');
 
@@ -12,9 +12,9 @@ async function chamar(origens: string | undefined, metodo: string, origem?: stri
   else Deno.env.set('APP_ORIGINS', origens);
   let rodou = false;
   try {
-    const res = await handle(async () => {
+    const res = await handle(async (r) => {
       rodou = true;
-      return new Response('ok');
+      return json(r, { ok: true }); // como as funções de verdade respondem
     })(new Request('http://funcao.teste/', { method: metodo, headers: origem ? { Origin: origem } : {} }));
     return { res, rodou, allow: res.headers.get('access-control-allow-origin') };
   } finally {

@@ -661,7 +661,7 @@ O cegamento (RF-26 a RF-28) é garantido em quatro níveis, do mais externo ao m
 - O bucket do R2 é **privado**, sem domínio público: uma imagem só é lida por URL assinada de 5 min, gerada depois de conferir o acesso com o JWT do usuário.
 - Antes do upload, o app remove EXIF, GPS e textos embutidos da imagem (RNF-07). O nome original do arquivo não é guardado.
 
-Também valem: no máximo 5 falhas de login e 5 tentativas de código a cada 15 min; mensagens de erro genéricas; HTTPS fora do ambiente local; CORS das funções só para as origens em `APP_ORIGINS`; imagens com `Cache-Control: no-store`; e log com triggers e hash encadeado. As senhas são guardadas pelo Supabase Auth com bcrypt.
+Também valem: no máximo 5 falhas de login e 5 tentativas de código a cada 15 min; mensagens de erro genéricas; HTTPS fora do ambiente local; CORS das funções só para as origens em `APP_ORIGINS`, fechado quando a variável falta, e origem fora da lista recebe 403 antes de a função rodar (R-10); imagens com `Cache-Control: no-store`; e log com triggers e hash encadeado. As senhas são guardadas pelo Supabase Auth com bcrypt.
 
 ### Sessão em cada plataforma
 
