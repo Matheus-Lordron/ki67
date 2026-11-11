@@ -246,8 +246,8 @@ sequenceDiagram
 
     U->>App: Informa e-mail e senha
     App->>+EF: POST auth-login
-    EF->>DB: Conta LOGIN_FALHA do e-mail nos últimos 15 min
-    alt 5 falhas ou mais
+    EF->>DB: Conta LOGIN_FALHA dos últimos 15 min: e-mail no mesmo IP, só o IP e só o e-mail
+    alt 5 do e-mail no IP, 20 do IP ou 20 do e-mail
         EF-->>App: 429, aguarde 15 min
     else Abaixo do limite
         EF->>Auth: Confere a senha
@@ -636,7 +636,7 @@ Não há rotas REST próprias. O app usa as tabelas e views pelo PostgREST (semp
 
 | Função | Quem pode | O que faz | Requisitos |
 | --- | --- | --- | --- |
-| `auth-login` | Público | Limite de 5 falhas por e-mail a cada 15 min, confere a senha, emite e envia o código 2FA | RF-01, RF-02, RNF-06 |
+| `auth-login` | Público | Limites a cada 15 min (5 falhas do e-mail no mesmo IP, 20 do IP, 20 do e-mail), confere a senha, emite e envia o código 2FA. Toda falha responde a mesma mensagem depois de pelo menos 1 s, com espera que cresce a cada erro seguido (R-14) | RF-01, RF-02, RNF-06 |
 | `auth-resend-2fa` | Sessão sem 2FA | Reenvia o código, respeitando o limite de códigos por 15 min | RF-02 |
 | `admin-create-user` | Admin | Cria a conta com papéis e envia o link para a pessoa definir a senha | RF-04, RF-07 |
 | `r2-upload-url` | Gestor | Confere lote e duplicidade e devolve a URL de PUT, assinada com o tamanho, o tipo e o SHA-256 do arquivo (R-11) | RF-08, RF-11 |
@@ -661,7 +661,7 @@ O cegamento (RF-26 a RF-28) é garantido em quatro níveis, do mais externo ao m
 - O bucket do R2 é **privado**, sem domínio público: uma imagem só é lida por URL assinada de 5 min, gerada depois de conferir o acesso com o JWT do usuário.
 - Antes do upload, o app remove EXIF, GPS e textos embutidos da imagem (RNF-07). O nome original do arquivo não é guardado.
 
-Também valem: no máximo 5 falhas de login e 5 tentativas de código a cada 15 min; mensagens de erro genéricas; HTTPS fora do ambiente local; CORS das funções só para as origens em `APP_ORIGINS`, fechado quando a variável falta, e origem fora da lista recebe 403 antes de a função rodar (R-10); imagens com `Cache-Control: no-store`; e log com triggers e hash encadeado. As senhas são guardadas pelo Supabase Auth com bcrypt.
+Também valem: no máximo 5 falhas de login do mesmo e-mail no mesmo IP, 20 por IP e 20 por e-mail a cada 15 min (contar por e-mail + IP impede que alguém bloqueie a conta de outra pessoa); 5 tentativas de código a cada 15 min; mensagens de erro genéricas; HTTPS fora do ambiente local; CORS das funções só para as origens em `APP_ORIGINS`, fechado quando a variável falta, e origem fora da lista recebe 403 antes de a função rodar (R-10); imagens com `Cache-Control: no-store`; e log com triggers e hash encadeado. As senhas são guardadas pelo Supabase Auth com bcrypt.
 
 ### Sessão em cada plataforma
 

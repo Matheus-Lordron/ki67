@@ -1,8 +1,14 @@
 // R-06 · auth-login (RF-01, RF-02, RF-06, RNF-06): limite de tentativas, mensagem
 // genérica na falha, conta desativada barrada e código 2FA ligado à sessão.
 import { chamadas, chamou, contagem, jwt, post, resend, resposta, restaurar, rpc, simular } from './_fake.ts';
-import { assertEquals, assertStringIncludes } from 'jsr:@std/assert@1';
-import { handler } from '../auth-login/handler.ts';
+import { assert, assertEquals, assertStringIncludes } from 'jsr:@std/assert@1';
+import { handler, tempo } from '../auth-login/handler.ts';
+
+// O relógio da função é trocado nos testes: nenhuma espera de verdade.
+const esperas: number[] = [];
+let relogio = 0;
+tempo.esperar = (ms) => (esperas.push(ms), Promise.resolve());
+tempo.agora = () => relogio;
 
 const GENERICA = { error: 'E-mail ou senha inválidos' };
 const SESSAO = '10000000-0000-4000-8000-0000000000aa';
@@ -60,7 +66,7 @@ Deno.test('5 falhas em 15 min: 429, sem nem tentar a senha (RNF-06)', async () =
 Deno.test('a contagem de falhas olha LOGIN_FALHA do mesmo e-mail nos últimos 15 min', async () => {
   simular(contagem('audit_logs', 0), senhaErrada, rpc('log_auth_failure', null));
   await handler(post(CREDENCIAIS));
-  const consulta = decodeURIComponent(chamadas.find((c) => c.method === 'HEAD')!.path);
+  const consulta = chamadas.filter((c) => c.method === 'HEAD').map((c) => decodeURIComponent(c.path)).join(' ');
   assertStringIncludes(consulta, 'action=eq.LOGIN_FALHA');
   assertStringIncludes(consulta, 'details->>email=eq.pessoa@teste.local');
   assertStringIncludes(consulta, 'occurred_at=gte.');
@@ -110,5 +116,95 @@ Deno.test('com o 2FA desligado no banco, entra sem código e sem e-mail', async 
   const res = await handler(post(CREDENCIAIS));
   assertEquals((await res.json()).two_factor_required, false);
   assertEquals(chamou('POST', 'api.resend.com').length, 0);
+  restaurar();
+});
+
+// --- R-14 (S4): limite por IP, por e-mail + IP e por e-mail; mesma resposta e mesmo tempo ---
+
+const IP = '200.10.20.30';
+const doIp = (body: unknown) => post(body, { 'x-forwarded-for': `${IP}, 10.0.0.1` });
+
+/** Falhas recentes por filtro: só IP, e-mail + IP ou só e-mail. */
+const falhas = ({ ip = 0, par = 0, email = 0 }) => (c: { method: string; path: string }) => {
+  if (c.method !== 'HEAD' || !c.path.startsWith('/rest/v1/audit_logs?')) return undefined;
+  const q = decodeURIComponent(c.path);
+  const total = q.includes('ip_address=') && q.includes('details->>email=') ? par : q.includes('ip_address=') ? ip : email;
+  return new Response(null, { status: 200, headers: { 'Content-Range': `*/${total}` } });
+};
+
+Deno.test('R-14: 21ª tentativa do mesmo IP, com e-mails diferentes, recebe 429 sem tentar a senha', async () => {
+  simular(falhas({ ip: 20 }));
+  const res = await handler(doIp({ ...CREDENCIAIS, email: 'outra.pessoa@teste.local' }));
+  assertEquals(res.status, 429);
+  assertEquals(chamou('POST', '/auth/v1/token').length, 0);
+  restaurar();
+});
+
+Deno.test('R-14: com 19 falhas no IP, a tentativa ainda segue', async () => {
+  simular(falhas({ ip: 19 }), senhaErrada, rpc('log_auth_failure', null));
+  assertEquals((await handler(doIp(CREDENCIAIS))).status, 401);
+  assertEquals(chamou('POST', '/auth/v1/token').length, 1);
+  restaurar();
+});
+
+Deno.test('R-14: 5 falhas do mesmo e-mail no mesmo IP: 429', async () => {
+  simular(falhas({ ip: 5, par: 5, email: 5 }));
+  assertEquals((await handler(doIp(CREDENCIAIS))).status, 429);
+  restaurar();
+});
+
+Deno.test('R-14: 5 falhas no seu e-mail vindas de OUTRO IP não bloqueiam você (S4)', async () => {
+  simular(falhas({ ip: 0, par: 0, email: 5 }), senhaCerta, sessao({}), rpc('issue_two_factor_code', '123456'), resend());
+  assertEquals((await handler(doIp(CREDENCIAIS))).status, 200);
+  restaurar();
+});
+
+Deno.test('R-14: 20 falhas no mesmo e-mail, de IPs variados, bloqueiam o e-mail (ataque distribuído)', async () => {
+  simular(falhas({ ip: 0, par: 0, email: 20 }));
+  assertEquals((await handler(doIp(CREDENCIAIS))).status, 429);
+  restaurar();
+});
+
+Deno.test('R-14: sem IP conhecido, vale o limite antigo de 5 por e-mail', async () => {
+  simular(falhas({ email: 5 }));
+  assertEquals((await handler(post(CREDENCIAIS))).status, 429);
+  restaurar();
+});
+
+Deno.test('R-14: conta inexistente e conta desativada respondem igual e no mesmo tempo', async () => {
+  const tempoTotal = async (rotas: Parameters<typeof simular>, demora: number) => {
+    esperas.length = 0;
+    simular(...rotas);
+    let chamada = 0;
+    tempo.agora = () => (chamada++ === 0 ? 0 : demora); // início e momento da falha
+    const res = await handler(doIp(CREDENCIAIS));
+    tempo.agora = () => relogio;
+    restaurar();
+    return { status: res.status, body: await res.json(), total: demora + esperas.reduce((a, b) => a + b, 0) };
+  };
+  const inexistente = await tempoTotal([falhas({}), senhaErrada, rpc('log_auth_failure', null)], 120);
+  const desativada = await tempoTotal([falhas({}), senhaCerta, sessao({ is_active: false }), logout, rpc('log_auth_failure', null)], 650);
+  assertEquals(inexistente.status, desativada.status);
+  assertEquals(inexistente.body, desativada.body);
+  assertEquals(inexistente.total, desativada.total);
+});
+
+Deno.test('R-14: a espera cresce a cada falha seguida do mesmo e-mail no mesmo IP', async () => {
+  const espera = async (par: number) => {
+    esperas.length = 0;
+    simular(falhas({ par }), senhaErrada, rpc('log_auth_failure', null));
+    await handler(doIp(CREDENCIAIS));
+    restaurar();
+    return esperas.reduce((a, b) => a + b, 0);
+  };
+  const [zero, uma, tres] = [await espera(0), await espera(1), await espera(3)];
+  assert(zero < uma && uma < tres, `esperas: ${zero}, ${uma}, ${tres}`);
+});
+
+Deno.test('R-14: as contagens usam o primeiro IP do x-forwarded-for, como o log do banco', async () => {
+  simular(falhas({}), senhaErrada, rpc('log_auth_failure', null));
+  await handler(doIp(CREDENCIAIS));
+  const consultas = chamadas.filter((c) => c.method === 'HEAD').map((c) => decodeURIComponent(c.path)).join(' ');
+  assertStringIncludes(consultas, `ip_address=eq.${IP}`);
   restaurar();
 });
