@@ -10,7 +10,7 @@
 //  - emite o código 2FA ligado a ESTA sessão e envia por e-mail.
 // Devolve os tokens da sessão; o app só acessa dados depois de confirmar o código.
 import { sendTwoFactorEmail } from '../_shared/email.ts';
-import { clientIp, handle, HttpError, json, readJson } from '../_shared/http.ts';
+import { handle, HttpError, json, readJson } from '../_shared/http.ts';
 import { anonClient, decodeJwt, mySession, serviceClient } from '../_shared/supabase.ts';
 
 const GENERIC = 'E-mail ou senha inválidos';
@@ -35,20 +35,11 @@ export const handler = handle(async (req) => {
 
   const started = tempo.agora();
   const svc = serviceClient(req);
-  const ip = clientIp(req);
-  const since = new Date(Date.now() - 15 * 60_000).toISOString();
-  const recentFailures = async (filters: Record<string, string>) => {
-    let q = svc.from('audit_logs').select('id', { count: 'exact', head: true })
-      .eq('action', 'LOGIN_FALHA').gte('occurred_at', since);
-    for (const [column, value] of Object.entries(filters)) q = q.eq(column, value);
-    return (await q).count ?? 0;
-  };
-  // Sem IP conhecido, o par vira só o e-mail (o limite antigo).
-  const [pair, byIp, byEmail] = await Promise.all([
-    recentFailures(ip ? { 'details->>email': email, ip_address: ip } : { 'details->>email': email }),
-    ip ? recentFailures({ ip_address: ip }) : Promise.resolve(0),
-    recentFailures({ 'details->>email': email }),
-  ]);
+  // R-18: o log guarda só o hash do e-mail com sal secreto, que só o banco conhece;
+  // por isso a contagem é feita lá. O IP chega pelo cabeçalho repassado (mesma regra do log).
+  const { data: counts, error: countError } = await svc.rpc('count_login_failures', { p_email: email });
+  if (countError) throw countError;
+  const { par: pair = 0, ip: byIp = 0, email: byEmail = 0 } = (counts ?? {}) as Record<string, number>;
   if (pair >= MAX_FAILURES || byIp >= MAX_FAILURES_PER_IP || byEmail >= MAX_FAILURES_PER_EMAIL) {
     throw new HttpError(429, 'Muitas tentativas. Aguarde 15 minutos e tente de novo.');
   }
