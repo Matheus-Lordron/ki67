@@ -83,6 +83,7 @@ jobs:
   # R-06: Edge Functions checadas e testadas com Supabase, R2 e Resend simulados.
   # --allow-net=none: nenhum teste consegue falar com um serviço de verdade.
   # --node-modules-dir=none: os pacotes npm: vêm do cache do Deno, não do package.json da raiz.
+  # --allow-read só nas imagens de exemplo compartilhadas com o app (R-12).
   funcoes:
     name: Edge Functions (deno test)
     runs-on: ubuntu-latest
@@ -101,7 +102,7 @@ jobs:
         run: deno check --node-modules-dir=none ./*/index.ts
 
       - name: Testes
-        run: deno test --node-modules-dir=none --allow-env --allow-net=none tests/
+        run: deno test --node-modules-dir=none --allow-env --allow-net=none --allow-read=../../tests/fixtures tests/
 
   # R-02: nenhum segredo no histórico. Varre todos os commits, não só o diff.
   segredos:

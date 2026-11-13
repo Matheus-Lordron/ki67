@@ -1,19 +1,19 @@
-// POST /functions/v1/r2-upload-url  { batch_id, sha256, mime_type, size_bytes }
+// POST /functions/v1/r2-upload-url  { batch_id, sha256, mime_type, size_bytes, quarantine? }
 //
 // Só o gestor do projeto do lote recebe a URL de envio (RF-08). Arquivo com
 // SHA-256 já cadastrado é avisado como duplicado ANTES do envio (RF-11).
 // A chave no bucket é derivada do hash: projects/<projeto>/batches/<lote>/<sha256>.<ext>
 // (mesmo conteúdo = mesma chave, então um reenvio nunca troca o original).
+// R-12: com `quarantine: true`, a chave fica em quarantine/<projeto>/<lote>/; o arquivo só
+// vai para projects/ depois de conferido pela r2-confirm-upload.
+import { EXT, finalKey, managedBatch, MAX_BYTES, quarantineKey } from '../_shared/batch.ts';
 import { handle, HttpError, json, readJson } from '../_shared/http.ts';
 import { presign, sha256Base64, ttl } from '../_shared/r2.ts';
-import { requireUser, serviceClient, userClient } from '../_shared/supabase.ts';
-
-const EXT: Record<string, string> = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/tiff': 'tif' };
-const MAX_BYTES = 50 * 1024 * 1024;
+import { requireUser, serviceClient } from '../_shared/supabase.ts';
 
 export const handler = handle(async (req) => {
   const { user, token } = await requireUser(req);
-  const body = await readJson<{ batch_id?: string; sha256?: string; mime_type?: string; size_bytes?: number }>(req);
+  const body = await readJson<{ batch_id?: string; sha256?: string; mime_type?: string; size_bytes?: number; quarantine?: boolean }>(req);
   const sha = String(body.sha256 ?? '').toLowerCase();
   const mime = String(body.mime_type ?? '');
   const size = Number(body.size_bytes ?? 0);
@@ -22,14 +22,7 @@ export const handler = handle(async (req) => {
   if (!(size > 0 && size <= MAX_BYTES)) throw new HttpError(400, 'Arquivo vazio ou acima de 50 MB.');
 
   // Pelo RLS, com o token do usuário: só enxerga o lote quem participa do projeto.
-  const { data: batch } = await userClient(req, token)
-    .from('batches')
-    .select('id, project_id, projects!inner(manager_id, status)')
-    .eq('id', String(body.batch_id ?? ''))
-    .maybeSingle();
-  const project = (batch as unknown as { projects?: { manager_id: string; status: string } } | null)?.projects;
-  if (!batch || project?.manager_id !== user.id) throw new HttpError(404, 'Lote não encontrado.');
-  if (project.status !== 'ativo') throw new HttpError(409, 'O projeto não está ativo.');
+  const batch = await managedBatch(req, token, user.id, body.batch_id);
 
   const { data: existing } = await serviceClient(req)
     .from('image_versions')
@@ -41,7 +34,7 @@ export const handler = handle(async (req) => {
     return json(req, { duplicate: true, existing_code: img.project_id === batch.project_id ? img.code : null });
   }
 
-  const storageKey = `projects/${batch.project_id}/batches/${batch.id}/${sha}.${EXT[mime]}`;
+  const storageKey = body.quarantine === true ? quarantineKey(batch, sha, EXT[mime]) : finalKey(batch, sha, EXT[mime]);
   // R-11: tamanho, tipo e SHA-256 entram na assinatura. O R2 recusa o PUT de um arquivo
   // diferente do declarado; o app manda `headers` no PUT (o navegador põe o Content-Length).
   const headers = { 'Content-Type': mime, 'x-amz-checksum-sha256': sha256Base64(sha) };

@@ -147,6 +147,7 @@ ki67/
 │   ├── config.toml                   # configuração do Supabase CLI e das funções
 │   └── functions/                    # Edge Functions (Deno): <nome>/handler.ts tem a regra, index.ts só sobe o servidor
 │       └── tests/                    # deno test com Supabase, R2 e Resend simulados (_fake.ts)
+├── tests/fixtures/imagens/           # imagens de exemplo lidas pelos inspetores do app e do servidor (R-12)
 ├── docs/                             # esta documentação
 └── package.json                      # scripts da raiz (delegam para apps/mobile)
 ```
@@ -166,7 +167,7 @@ ki67/
 | O limiar de cor da pré-anotação | `THRESHOLDS` em `apps/mobile/src/features/anotacao/colorThreshold.ts` |
 | Uma tabela ou coluna | Uma migração **nova** em `supabase/migrations/` (`npx supabase migration new <nome>`), com teste pgTAP em `supabase/tests/database/`. Migração já aplicada não se edita |
 | O índice, a concordância ou o formato Labelme/CSV | `apps/mobile/src/utils/ki67.ts` |
-| Login, 2FA, cadastro de usuário ou URLs do R2 | `supabase/functions/<nome-da-função>/handler.ts`, com teste em `supabase/functions/tests/<nome-da-função>.test.ts`. Para rodar: `deno test --node-modules-dir=none --allow-env --allow-net=none tests/` dentro de `supabase/functions` (ou pela imagem Docker `denoland/deno`) |
+| Login, 2FA, cadastro de usuário ou URLs do R2 | `supabase/functions/<nome-da-função>/handler.ts`, com teste em `supabase/functions/tests/<nome-da-função>.test.ts`. Para rodar: `deno test --node-modules-dir=none --allow-env --allow-net=none --allow-read=../../tests/fixtures tests/` dentro de `supabase/functions` (ou pela imagem Docker `denoland/deno`) |
 | Uma variável de ambiente | `apps/mobile/.env.example` (app) ou `supabase/functions/.env.example` (funções), com comentário explicando o valor |
 
 ## 5. Mapa de navegação
@@ -313,6 +314,38 @@ sequenceDiagram
     end
     App-->>G: Resumo com enviadas, duplicadas e recusadas
 ```
+
+**Envio conferido no servidor (R-12).** O fluxo acima confia no app para tirar os metadados e para declarar o hash. O fluxo novo não confia: o arquivo cai numa **quarentena** (`quarantine/<projeto>/<lote>/<sha256>.<ext>`, no mesmo bucket) e só vira imagem do lote depois que a função `r2-confirm-upload` o confere. A primeira parte do R-12 traz o backend; o app passa a usar este fluxo na segunda parte, e só então o `register_image` deixa de ser chamado pelo app.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant App
+    participant UP as r2-upload-url
+    participant CF as r2-confirm-upload
+    participant ARQ as Cloudflare R2
+    participant DB as Banco
+
+    App->>UP: Pede URL com quarantine: true
+    UP-->>App: URL de PUT para quarantine/...
+    App->>ARQ: PUT do arquivo limpo
+    App->>+CF: Confirma lote e chave da quarentena
+    CF->>ARQ: Baixa o arquivo (para de ler acima de 50 MB)
+    CF->>CF: Confere SHA-256, formato pelos bytes, dimensões e metadados de texto
+    alt Algo não confere
+        CF->>ARQ: Apaga da quarentena
+        CF->>DB: log_upload_rejected (UPLOAD_RECUSADO)
+        CF-->>App: rejected com o motivo
+    else Arquivo conferido
+        CF->>ARQ: Grava em projects/... com checksum
+        CF->>DB: register_verified_image em nome do gestor
+        CF->>ARQ: Apaga da quarentena
+        CF-->>App: uploaded com o código da imagem
+    end
+    deactivate CF
+```
+
+A função nunca apaga nada em `projects/`: a chave vem do hash e pode ser de uma imagem já registrada. O que sobrar na quarentena (envio abandonado) é apagado pela regra de expiração do bucket ([guia, seção 2](04-guia-de-configuracao.md#2-cloudflare-r2-imagens)). A inspeção do servidor (`_shared/imageInspect.ts`) é a parte de leitura de `src/utils/imageMetadata.ts` do app; as duas leem as mesmas imagens de exemplo em `tests/fixtures/imagens`, e a saída higienizada pelo app precisa passar no servidor.
 
 ### 6.3 Abrir uma imagem atribuída: cegamento e URL assinada (RF-18, RF-27, RF-28, RNF-06)
 
@@ -627,6 +660,7 @@ Não há rotas REST próprias. O app usa as tabelas e views pelo PostgREST (semp
 | `log_auth_failure`, `count_login_failures` | Só o backend (`service_role`) | Registra a falha de login com o hash do e-mail e conta as falhas dos últimos 15 min por e-mail no IP, por IP e por e-mail (R-14, R-18) | RF-01, RNF-06 |
 | `admin_update_user` | Admin | Muda nome, papéis e ativa ou desativa a conta | RF-06, RF-07 |
 | `register_image`, `set_pre_annotation` | Gestor | Registra a imagem enviada ao R2 e guarda a pré-anotação | RF-08, RF-11, RF-17 |
+| `register_verified_image`, `log_upload_rejected` | Só o backend (`service_role`) | Registra a imagem já conferida pela `r2-confirm-upload`, em nome do gestor, com a chave exata derivada do hash; ou registra a recusa no log (R-12) | RF-08, RF-11, RNF-07 |
 | `assign_evaluators`, `assign_evaluators_to_batch` | Gestor | Atribui imagens ou um lote inteiro a N avaliadores | RF-10, RF-29 |
 | `open_analysis` | Dono da análise | Abre a análise, com a última versão ou a pré-anotação | RF-18, RF-27, RF-28 |
 | `save_analysis_version`, `finalize_analysis`, `restore_analysis_version` | Dono da análise | Salva, finaliza e restaura versões, com conferência da versão base | RF-21, RF-33, RF-34 |
@@ -641,7 +675,8 @@ Não há rotas REST próprias. O app usa as tabelas e views pelo PostgREST (semp
 | `auth-login` | Público | Limites a cada 15 min (5 falhas do e-mail no mesmo IP, 20 do IP, 20 do e-mail), confere a senha, emite e envia o código 2FA. Toda falha responde a mesma mensagem depois de pelo menos 1 s, com espera que cresce a cada erro seguido (R-14) | RF-01, RF-02, RNF-06 |
 | `auth-resend-2fa` | Sessão sem 2FA | Reenvia o código, respeitando o limite de códigos por 15 min | RF-02 |
 | `admin-create-user` | Admin | Cria a conta com papéis e envia o link para a pessoa definir a senha | RF-04, RF-07 |
-| `r2-upload-url` | Gestor | Confere lote e duplicidade e devolve a URL de PUT, assinada com o tamanho, o tipo e o SHA-256 do arquivo (R-11) | RF-08, RF-11 |
+| `r2-upload-url` | Gestor | Confere lote e duplicidade e devolve a URL de PUT, assinada com o tamanho, o tipo e o SHA-256 do arquivo (R-11). Com `quarantine: true`, a URL aponta para a quarentena (R-12) | RF-08, RF-11 |
+| `r2-confirm-upload` | Gestor | Baixa o arquivo da quarentena, confere hash, formato, dimensões e metadados; recusa e apaga, ou grava em `projects/` e registra (R-12) | RF-08, RF-11, RNF-07 |
 | `r2-download-url` | Quem pode ver a imagem | Lê a versão com o JWT do usuário (RLS) e devolve URLs de GET de 5 min | RF-28, RNF-06 |
 
 Nenhuma função exclui usuários, projetos, análises, versões ou logs (RN-06).
@@ -653,7 +688,7 @@ O cegamento (RF-26 a RF-28) é garantido em quatro níveis, do mais externo ao m
 1. **Quem é você.** Sessão do Supabase Auth (JWT de curta duração com refresh token rotativo) que só vale depois do código 2FA. O app encerra a sessão depois de 30 min sem atividade (RF-05).
 2. **O que você pode fazer.** O app só lê as tabelas diretamente. As únicas escritas diretas são em perfis, projetos, lotes e labels, coluna por coluna e ainda filtradas pelo RLS. Todo o resto (imagens, análises, versões, validação e log) passa por uma função RPC que confere o papel e o dono.
 3. **O que você pode ver.** As políticas RLS filtram cada consulta pelo usuário do JWT: o avaliador só vê as próprias análises, o gestor só os próprios projetos, e o validador só vê imagens prontas que ele não anotou. A comparação entrega as análises como A, B, C, sem nomes. Pedir a análise de outra pessoa devolve **NOT_FOUND**, para não confirmar que ela existe, e grava `ACESSO_NEGADO` no log.
-4. **Como provamos.** A bateria pgTAP em `supabase/tests/database/` (104 verificações, R-05) roda no CI a cada pull request, num Supabase local criado do zero pelas migrações. Ela cobre o RLS de cada papel (avaliador, validador, gestor, admin), o bloqueio sem 2FA, a imutabilidade de versões, resultado e log, RN-07, RF-29, RN-05, RN-08 e `verify_audit_chain()`. Para rodar localmente: `npx supabase db reset --local` e `npx supabase test db`.
+4. **Como provamos.** A bateria pgTAP em `supabase/tests/database/` (R-05; hoje com 133 verificações, incluindo login sem e-mail no log e envio conferido) roda no CI a cada pull request, num Supabase local criado do zero pelas migrações. Ela cobre o RLS de cada papel (avaliador, validador, gestor, admin), o bloqueio sem 2FA, a imutabilidade de versões, resultado e log, RN-07, RF-29, RN-05, RN-08 e `verify_audit_chain()`. Para rodar localmente: `npx supabase db reset --local` e `npx supabase test db`.
 
 ### O que o app recebe e o que fica no servidor
 
@@ -661,7 +696,7 @@ O cegamento (RF-26 a RF-28) é garantido em quatro níveis, do mais externo ao m
 - A chave `service_role`, as credenciais do R2 e a chave do Resend ficam **só nos segredos das Edge Functions**, nunca em variáveis `EXPO_PUBLIC_`.
 - Funções auxiliares ficam no schema `private`, que o PostgREST não expõe.
 - O bucket do R2 é **privado**, sem domínio público: uma imagem só é lida por URL assinada de 5 min, gerada depois de conferir o acesso com o JWT do usuário.
-- Antes do upload, o app remove EXIF, GPS e textos embutidos da imagem (RNF-07). O nome original do arquivo não é guardado.
+- Antes do upload, o app remove EXIF, GPS e textos embutidos da imagem (RNF-07). No fluxo com quarentena (R-12), o servidor confere de novo e recusa o arquivo que ainda tiver esses dados. O nome original do arquivo não é guardado.
 
 Também valem: no máximo 5 falhas de login do mesmo e-mail no mesmo IP, 20 por IP e 20 por e-mail a cada 15 min (contar por e-mail + IP impede que alguém bloqueie a conta de outra pessoa); 5 tentativas de código a cada 15 min; mensagens de erro genéricas; HTTPS fora do ambiente local; CORS das funções só para as origens em `APP_ORIGINS`, fechado quando a variável falta, e origem fora da lista recebe 403 antes de a função rodar (R-10); imagens com `Cache-Control: no-store`; e log com triggers e hash encadeado. As senhas são guardadas pelo Supabase Auth com bcrypt.
 
