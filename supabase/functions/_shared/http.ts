@@ -61,12 +61,6 @@ export function handle(fn: (req: Request) => Promise<Response>) {
   };
 }
 
-/** IP do usuário, pela mesma regra do log do banco (private.request_ip): o primeiro do x-forwarded-for. */
-export function clientIp(req: Request): string | null {
-  const first = (req.headers.get('x-forwarded-for') ?? '').split(',')[0].trim();
-  return first || req.headers.get('cf-connecting-ip')?.trim() || req.headers.get('x-real-ip')?.trim() || null;
-}
-
 export async function readJson<T>(req: Request): Promise<T> {
   try {
     return (await req.json()) as T;
