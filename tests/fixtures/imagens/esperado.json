@@ -1,0 +1,106 @@
+{
+  "jpeg-exif-sujo.jpg": {
+    "mime": "image/jpeg",
+    "width": 200,
+    "height": 300,
+    "metadados": [
+      "EXIF",
+      "Comentário JPEG"
+    ]
+  },
+  "jpeg-exif-limpo.jpg": {
+    "mime": "image/jpeg",
+    "width": 200,
+    "height": 300,
+    "metadados": []
+  },
+  "jpeg-xmp-sujo.jpg": {
+    "mime": "image/jpeg",
+    "width": 120,
+    "height": 80,
+    "metadados": [
+      "XMP"
+    ]
+  },
+  "jpeg-xmp-limpo.jpg": {
+    "mime": "image/jpeg",
+    "width": 120,
+    "height": 80,
+    "metadados": []
+  },
+  "jpeg-iptc-app5-sujo.jpg": {
+    "mime": "image/jpeg",
+    "width": 10,
+    "height": 10,
+    "metadados": [
+      "IPTC/Photoshop",
+      "APP5"
+    ]
+  },
+  "jpeg-iptc-app5-limpo.jpg": {
+    "mime": "image/jpeg",
+    "width": 10,
+    "height": 10,
+    "metadados": []
+  },
+  "png-texto-sujo.png": {
+    "mime": "image/png",
+    "width": 64,
+    "height": 32,
+    "metadados": [
+      "PNG tEXt: Author",
+      "PNG tIME"
+    ]
+  },
+  "png-texto-limpo.png": {
+    "mime": "image/png",
+    "width": 64,
+    "height": 32,
+    "metadados": []
+  },
+  "png-ztxt-exif-sujo.png": {
+    "mime": "image/png",
+    "width": 64,
+    "height": 32,
+    "metadados": [
+      "PNG zTXt: Comment",
+      "PNG eXIf"
+    ]
+  },
+  "png-ztxt-exif-limpo.png": {
+    "mime": "image/png",
+    "width": 64,
+    "height": 32,
+    "metadados": []
+  },
+  "tiff-exif-sujo.tif": {
+    "mime": "image/tiff",
+    "width": 640,
+    "height": 480,
+    "metadados": [
+      "TIFF ImageDescription",
+      "TIFF EXIF"
+    ]
+  },
+  "tiff-exif-limpo.tif": {
+    "mime": "image/tiff",
+    "width": 640,
+    "height": 480,
+    "metadados": []
+  },
+  "tiff-gps-sujo.tif": {
+    "mime": "image/tiff",
+    "width": 640,
+    "height": 480,
+    "metadados": [
+      "TIFF ImageDescription",
+      "TIFF GPS"
+    ]
+  },
+  "tiff-gps-limpo.tif": {
+    "mime": "image/tiff",
+    "width": 640,
+    "height": 480,
+    "metadados": []
+  }
+}

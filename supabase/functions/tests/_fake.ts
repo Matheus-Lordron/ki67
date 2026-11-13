@@ -27,6 +27,7 @@ export interface Chamada {
   host: string;
   headers: Headers;
   body: unknown;
+  bytes: Uint8Array; // corpo cru (o PUT de imagem no R2 é binário)
 }
 
 type Rota = (c: Chamada) => Response | undefined | Promise<Response | undefined>;
@@ -42,12 +43,13 @@ export function simular(...novas: Rota[]) {
   globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
     const req = new Request(input, init);
     const url = new URL(req.url);
-    const texto = req.method === 'GET' || req.method === 'HEAD' ? '' : await req.text();
+    const bytes = req.method === 'GET' || req.method === 'HEAD' ? new Uint8Array() : new Uint8Array(await req.arrayBuffer());
+    const texto = new TextDecoder().decode(bytes);
     let body: unknown = texto;
     try {
       body = texto ? JSON.parse(texto) : undefined;
     } catch { /* corpo não-JSON fica como texto */ }
-    const c: Chamada = { method: req.method, path: url.pathname + url.search, host: url.host, headers: req.headers, body };
+    const c: Chamada = { method: req.method, path: url.pathname + url.search, host: url.host, headers: req.headers, body, bytes };
     chamadas.push(c);
     for (const r of rotas) {
       const res = await r(c);
@@ -105,6 +107,26 @@ export const contagem = (nome: string, total: number): Rota => (c) =>
   ehSupabase(c) && c.method === 'HEAD' && c.path.startsWith(`/rest/v1/${nome}?`)
     ? new Response(null, { status: 200, headers: { 'Content-Range': `*/${total}` } })
     : undefined;
+
+/**
+ * Bucket R2 em memória (R-12): GET, PUT e DELETE em https://conta-teste.r2.cloudflarestorage.com/ki67-teste/<chave>.
+ * `objetos` é alterado pelos PUT e DELETE, para o teste conferir o estado final.
+ */
+export const r2Bucket = (objetos: Map<string, Uint8Array>): Rota => (c) => {
+  if (c.host !== 'conta-teste.r2.cloudflarestorage.com') return undefined;
+  const chave = decodeURIComponent(c.path.split('?')[0].replace(/^\/ki67-teste\//, ''));
+  if (c.method === 'PUT') {
+    objetos.set(chave, c.bytes);
+    return new Response(null, { status: 200 });
+  }
+  if (c.method === 'DELETE') {
+    objetos.delete(chave);
+    return new Response(null, { status: 204 });
+  }
+  const obj = objetos.get(chave);
+  if (!obj) return new Response('<Error><Code>NoSuchKey</Code></Error>', { status: 404 });
+  return new Response(c.method === 'HEAD' ? null : obj as Uint8Array<ArrayBuffer>, { status: 200 });
+};
 
 /** Envio pelo Resend. */
 export const resend = (status = 200): Rota => (c) =>
