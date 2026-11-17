@@ -1,6 +1,6 @@
 // R-06 · auth-login (RF-01, RF-02, RF-06, RNF-06): limite de tentativas, mensagem
 // genérica na falha, conta desativada barrada e código 2FA ligado à sessão.
-import { chamadas, chamou, contagem, jwt, post, resend, resposta, restaurar, rpc, simular } from './_fake.ts';
+import { chamadas, chamou, jwt, post, resend, resposta, restaurar, rpc, simular } from './_fake.ts';
 import { assert, assertEquals, assertStringIncludes } from 'jsr:@std/assert@1';
 import { handler, tempo } from '../auth-login/handler.ts';
 
@@ -23,10 +23,13 @@ const senhaCerta = (c: { method: string; path: string }) =>
 const senhaErrada = (c: { method: string; path: string }) =>
   c.path.startsWith('/auth/v1/token') ? resposta({ error: 'invalid_grant', error_description: 'Invalid login credentials' }, 400) : undefined;
 const logout = (c: { path: string }) => (c.path.startsWith('/auth/v1/logout') ? resposta(undefined, 204) : undefined);
+/** Contagem de falhas recentes feita pelo banco (R-18): o e-mail é comparado pelo hash com sal. */
+const falhas = ({ ip = 0, par = 0, email = 0 }) => rpc('count_login_failures', { par, ip, email });
+const semFalhas = falhas({});
 const sessao = (s: Record<string, unknown>) => rpc('my_session', { is_active: true, name: 'Pessoa', two_factor_required: true, ...s });
 
 Deno.test('login certo: emite o código 2FA ligado a esta sessão e envia por e-mail', async () => {
-  simular(contagem('audit_logs', 0), senhaCerta, sessao({}), rpc('issue_two_factor_code', '123456'), resend());
+  simular(semFalhas, senhaCerta, sessao({}), rpc('issue_two_factor_code', '123456'), resend());
   const res = await handler(post(CREDENCIAIS));
   assertEquals(res.status, 200);
   assertEquals(await res.json(), { access_token: ACESSO, refresh_token: 'refresh', two_factor_required: true });
@@ -39,14 +42,14 @@ Deno.test('login certo: emite o código 2FA ligado a esta sessão e envia por e-
 });
 
 Deno.test('o e-mail chega normalizado (minúsculas, sem espaços) ao Supabase Auth', async () => {
-  simular(contagem('audit_logs', 0), senhaCerta, sessao({}), rpc('issue_two_factor_code', '123456'), resend());
+  simular(semFalhas, senhaCerta, sessao({}), rpc('issue_two_factor_code', '123456'), resend());
   await handler(post(CREDENCIAIS));
   assertEquals((chamou('POST', '/auth/v1/token')[0].body as { email: string }).email, 'pessoa@teste.local');
   restaurar();
 });
 
 Deno.test('senha errada: mensagem genérica e LOGIN_FALHA no log', async () => {
-  simular(contagem('audit_logs', 0), senhaErrada, rpc('log_auth_failure', null));
+  simular(semFalhas, senhaErrada, rpc('log_auth_failure', null));
   const res = await handler(post(CREDENCIAIS));
   assertEquals(res.status, 401);
   assertEquals(await res.json(), GENERICA);
@@ -56,25 +59,23 @@ Deno.test('senha errada: mensagem genérica e LOGIN_FALHA no log', async () => {
 });
 
 Deno.test('5 falhas em 15 min: 429, sem nem tentar a senha (RNF-06)', async () => {
-  simular(contagem('audit_logs', 5));
+  simular(falhas({ par: 5, email: 5 }));
   const res = await handler(post(CREDENCIAIS));
   assertEquals(res.status, 429);
   assertEquals(chamou('POST', '/auth/v1/token').length, 0);
   restaurar();
 });
 
-Deno.test('a contagem de falhas olha LOGIN_FALHA do mesmo e-mail nos últimos 15 min', async () => {
-  simular(contagem('audit_logs', 0), senhaErrada, rpc('log_auth_failure', null));
+Deno.test('R-18: a contagem é pedida ao banco com o e-mail normalizado, sem filtrar o log pelo e-mail', async () => {
+  simular(semFalhas, senhaErrada, rpc('log_auth_failure', null));
   await handler(post(CREDENCIAIS));
-  const consulta = chamadas.filter((c) => c.method === 'HEAD').map((c) => decodeURIComponent(c.path)).join(' ');
-  assertStringIncludes(consulta, 'action=eq.LOGIN_FALHA');
-  assertStringIncludes(consulta, 'details->>email=eq.pessoa@teste.local');
-  assertStringIncludes(consulta, 'occurred_at=gte.');
+  assertEquals(chamou('POST', '/rpc/count_login_failures')[0].body, { p_email: 'pessoa@teste.local' });
+  assertEquals(chamadas.filter((c) => c.path.startsWith('/rest/v1/audit_logs')).length, 0);
   restaurar();
 });
 
 Deno.test('conta desativada: encerra a sessão aberta e responde a mesma mensagem genérica (RF-06)', async () => {
-  simular(contagem('audit_logs', 0), senhaCerta, sessao({ is_active: false }), logout, rpc('log_auth_failure', null));
+  simular(semFalhas, senhaCerta, sessao({ is_active: false }), logout, rpc('log_auth_failure', null));
   const res = await handler(post(CREDENCIAIS));
   assertEquals(res.status, 401);
   assertEquals(await res.json(), GENERICA);
@@ -93,7 +94,7 @@ Deno.test('sem e-mail ou senha: 401 genérico, sem consultar nada', async () => 
 });
 
 Deno.test('limite de códigos do banco (PT429) vira 429 com a mensagem do banco', async () => {
-  simular(contagem('audit_logs', 0), senhaCerta, sessao({}),
+  simular(semFalhas, senhaCerta, sessao({}),
     rpc('issue_two_factor_code', { code: 'PT429', message: 'Muitos códigos. Aguarde.' }, 429));
   const res = await handler(post(CREDENCIAIS));
   assertEquals(res.status, 429);
@@ -103,7 +104,7 @@ Deno.test('limite de códigos do banco (PT429) vira 429 com a mensagem do banco'
 Deno.test('Resend recusa o envio: 502, sem devolver os tokens', async () => {
   const erro = console.error;
   console.error = () => {};
-  simular(contagem('audit_logs', 0), senhaCerta, sessao({}), rpc('issue_two_factor_code', '123456'), resend(500));
+  simular(semFalhas, senhaCerta, sessao({}), rpc('issue_two_factor_code', '123456'), resend(500));
   const res = await handler(post(CREDENCIAIS));
   console.error = erro;
   assertEquals(res.status, 502);
@@ -112,7 +113,7 @@ Deno.test('Resend recusa o envio: 502, sem devolver os tokens', async () => {
 });
 
 Deno.test('com o 2FA desligado no banco, entra sem código e sem e-mail', async () => {
-  simular(contagem('audit_logs', 0), senhaCerta, sessao({ two_factor_required: false }));
+  simular(semFalhas, senhaCerta, sessao({ two_factor_required: false }));
   const res = await handler(post(CREDENCIAIS));
   assertEquals((await res.json()).two_factor_required, false);
   assertEquals(chamou('POST', 'api.resend.com').length, 0);
@@ -123,14 +124,6 @@ Deno.test('com o 2FA desligado no banco, entra sem código e sem e-mail', async 
 
 const IP = '200.10.20.30';
 const doIp = (body: unknown) => post(body, { 'x-forwarded-for': `${IP}, 10.0.0.1` });
-
-/** Falhas recentes por filtro: só IP, e-mail + IP ou só e-mail. */
-const falhas = ({ ip = 0, par = 0, email = 0 }) => (c: { method: string; path: string }) => {
-  if (c.method !== 'HEAD' || !c.path.startsWith('/rest/v1/audit_logs?')) return undefined;
-  const q = decodeURIComponent(c.path);
-  const total = q.includes('ip_address=') && q.includes('details->>email=') ? par : q.includes('ip_address=') ? ip : email;
-  return new Response(null, { status: 200, headers: { 'Content-Range': `*/${total}` } });
-};
 
 Deno.test('R-14: 21ª tentativa do mesmo IP, com e-mails diferentes, recebe 429 sem tentar a senha', async () => {
   simular(falhas({ ip: 20 }));
@@ -165,12 +158,6 @@ Deno.test('R-14: 20 falhas no mesmo e-mail, de IPs variados, bloqueiam o e-mail 
   restaurar();
 });
 
-Deno.test('R-14: sem IP conhecido, vale o limite antigo de 5 por e-mail', async () => {
-  simular(falhas({ email: 5 }));
-  assertEquals((await handler(post(CREDENCIAIS))).status, 429);
-  restaurar();
-});
-
 Deno.test('R-14: conta inexistente e conta desativada respondem igual e no mesmo tempo', async () => {
   const tempoTotal = async (rotas: Parameters<typeof simular>, demora: number) => {
     esperas.length = 0;
@@ -201,10 +188,11 @@ Deno.test('R-14: a espera cresce a cada falha seguida do mesmo e-mail no mesmo I
   assert(zero < uma && uma < tres, `esperas: ${zero}, ${uma}, ${tres}`);
 });
 
-Deno.test('R-14: as contagens usam o primeiro IP do x-forwarded-for, como o log do banco', async () => {
-  simular(falhas({}), senhaErrada, rpc('log_auth_failure', null));
+Deno.test('R-14: o IP do usuário segue para o banco, que conta pela mesma regra do log', async () => {
+  simular(semFalhas, senhaErrada, rpc('log_auth_failure', null));
   await handler(doIp(CREDENCIAIS));
-  const consultas = chamadas.filter((c) => c.method === 'HEAD').map((c) => decodeURIComponent(c.path)).join(' ');
-  assertStringIncludes(consultas, `ip_address=eq.${IP}`);
+  for (const nome of ['count_login_failures', 'log_auth_failure']) {
+    assertEquals(chamou('POST', `/rpc/${nome}`)[0].headers.get('x-forwarded-for'), `${IP}, 10.0.0.1`);
+  }
   restaurar();
 });

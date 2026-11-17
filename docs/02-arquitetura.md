@@ -100,6 +100,7 @@ flowchart LR
 | Funções RPC | migração base, seção 7 | Salvar, finalizar e restaurar versões, atribuir, registrar upload, abrir comparação e validar. O app não tem `INSERT` nem `UPDATE` direto nessas tabelas | RF-10, RF-21, RF-30 a RF-34 |
 | Triggers | migração base, seções 5 e 6 | Gestor não avalia no próprio projeto (RN-07), N avaliadores por imagem (RF-29), transições de status, versões e log imutáveis, bloqueio de exclusão | RF-33, RF-38, RN-06 |
 | Log com hash encadeado | trigger `audit_logs_chain` | Cada registro guarda o hash do anterior; `verify_audit_chain()` aponta qualquer quebra | RF-37, RF-38 |
+| Falha de login sem e-mail | `log_auth_failure`, `private.email_hash` | O log guarda o HMAC-SHA256 do e-mail com um sal em `private.secrets`, que nenhum papel do app lê. Dá para contar tentativas sem guardar o e-mail de quem nem tem conta (R-18) | LGPD art. 6º, III |
 | Edge Functions | `supabase/functions/` | Login com limite de tentativas e envio do código 2FA, criação de usuários pelo admin e URLs assinadas do R2 | RF-01, RF-02, RF-04, RF-08, RNF-06 |
 
 ## 4. Estrutura de pastas
@@ -246,7 +247,7 @@ sequenceDiagram
 
     U->>App: Informa e-mail e senha
     App->>+EF: POST auth-login
-    EF->>DB: Conta LOGIN_FALHA dos últimos 15 min: e-mail no mesmo IP, só o IP e só o e-mail
+    EF->>DB: count_login_failures: falhas dos últimos 15 min (hash do e-mail no mesmo IP, só o IP e só o hash)
     alt 5 do e-mail no IP, 20 do IP ou 20 do e-mail
         EF-->>App: 429, aguarde 15 min
     else Abaixo do limite
@@ -257,7 +258,7 @@ sequenceDiagram
             EF-->>App: 200 + sessão ainda sem 2FA
             App-->>U: Pede o código recebido por e-mail
         else Senha errada ou conta desativada
-            EF->>DB: Log LOGIN_FALHA
+            EF->>DB: Log LOGIN_FALHA com o hash do e-mail, nunca o e-mail (R-18)
             EF-->>App: 401 com mensagem genérica
         end
     end
@@ -615,7 +616,7 @@ Garantias que o próprio banco impõe:
 
 Não há rotas REST próprias. O app usa as tabelas e views pelo PostgREST (sempre filtradas pelo RLS), as funções RPC abaixo e as Edge Functions. "Gestor" sempre significa o gestor **do projeto** daquele recurso.
 
-**Funções RPC** (migração base, `supabase/migrations/20261026120000_base.sql`):
+**Funções RPC** (migrações em `supabase/migrations/`; a maioria está na base, `20261026120000_base.sql`):
 
 | Função | Quem pode | O que faz | Requisitos |
 | --- | --- | --- | --- |
@@ -623,6 +624,7 @@ Não há rotas REST próprias. O app usa as tabelas e views pelo PostgREST (semp
 | `verify_two_factor_code` | Sessão com desafio aberto | Confere o código (até 5 tentativas) e libera a sessão | RF-02 |
 | `register_login`, `log_event` | Sessão ativa | Registra login e eventos permitidos do app (logout, exportação, sessão expirada...) | RF-37 |
 | `verify_audit_chain` | Admin | Recalcula a cadeia de hashes e aponta a primeira quebra | RF-38 |
+| `log_auth_failure`, `count_login_failures` | Só o backend (`service_role`) | Registra a falha de login com o hash do e-mail e conta as falhas dos últimos 15 min por e-mail no IP, por IP e por e-mail (R-14, R-18) | RF-01, RNF-06 |
 | `admin_update_user` | Admin | Muda nome, papéis e ativa ou desativa a conta | RF-06, RF-07 |
 | `register_image`, `set_pre_annotation` | Gestor | Registra a imagem enviada ao R2 e guarda a pré-anotação | RF-08, RF-11, RF-17 |
 | `assign_evaluators`, `assign_evaluators_to_batch` | Gestor | Atribui imagens ou um lote inteiro a N avaliadores | RF-10, RF-29 |
