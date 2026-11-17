@@ -38,3 +38,7 @@ desktop.ini
 .idea/
 .vscode/*
 !.vscode/extensions.json
+# Playwright CLI output (may contain credentials)
+.playwright-cli/
+# Claude Code: configuração local de cada máquina (hooks, permissões)
+.claude/settings.local.json
