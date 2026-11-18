@@ -49,7 +49,7 @@ Pré-requisitos: sessão do Claude Code aberta na pasta `ki67`, `npm install -g 
 
 ## 3. Antes de começar
 
-- [ ] `/impeccable init` concluído, com o `PRODUCT.md` revisado (usuários, tom, princípios)
+- [x] `/impeccable init` concluído, com o `PRODUCT.md` revisado (usuários, tom, princípios)
 - [ ] Combinar com o Fernando a **janela da R-07**, que move `apps/mobile` para `frontend/`. Não abrir PR grande de tela perto dela
 - [ ] Combinar a ordem com as tarefas de tela da frente B (R-24, R-25, R-27 a R-30), para não editar a mesma tela ao mesmo tempo
 - [ ] Pedir um ID para a tarefa (sugestão: **R-31 · refatoração visual**), para citar nos commits e passar no commitlint
@@ -59,9 +59,9 @@ Pré-requisitos: sessão do Claude Code aberta na pasta `ki67`, `npm install -g 
 
 ### Fase 1 · Diagnóstico (sem mexer em código)
 
-- [ ] **Capturas de antes** com o playwright-cli: todas as telas da [seção 5](#5-checklist-por-tela), em 1440 px e em 375 px. Guardar em `docs/capturas/antes/`
-- [ ] `/impeccable document`: gerar o `DESIGN.md` do visual **atual** (cores, fontes, espaçamentos, componentes)
-- [ ] `/impeccable critique` nas 4 telas mais usadas: login, fila do avaliador, anotação e comparação
+- [ ] **Capturas de antes** com o playwright-cli: todas as telas da [seção 5](#5-checklist-por-tela), em 1440 px e em 375 px. Guardar em `docs/capturas/antes/` *(login feito em 17/11/2026)*
+- [x] `/impeccable document`: gerar o `DESIGN.md` do visual **atual** (cores, fontes, espaçamentos, componentes)
+- [ ] `/impeccable critique` nas 4 telas mais usadas: login, fila do avaliador, anotação e comparação *(login feito: 24/40. P1: nome do produto ausente; placeholder de senha que parece preenchido. P2: excesso de selos e legenda de corantes, texto "Workspace Clínico", botões de demonstração com 32 px)*
 - [ ] `/impeccable audit` no app todo (acessibilidade, contraste, tema, responsividade)
 - [ ] Juntar os problemas numa lista única, ordenada por gravidade
 
