@@ -1,0 +1,12 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "web-demo",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "apps/mobile", "run", "web", "--", "--port", "8091"],
+      "env": { "EXPO_NO_DOTENV": "1", "CI": "1" },
+      "port": 8091
+    }
+  ]
+}
