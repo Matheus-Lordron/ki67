@@ -7,9 +7,11 @@
  *   r2-upload-url   → URL de PUT, válida por poucos minutos, só para o gestor do lote
  *   r2-download-url → URL de GET de 5 min (RNF-06), só para quem enxerga a imagem
  *
- * Fluxo de upload de cada arquivo (RF-08, RF-11, RNF-07):
+ * Fluxo de upload de cada arquivo (RF-08, RF-11, RNF-07, R-12):
  *   ler bytes → validar formato → remover metadados de texto → SHA-256
- *   → pedir URL → PUT direto no R2 → register_image no banco
+ *   → pedir URL de quarentena → PUT direto no R2 → r2-confirm-upload
+ * Quem registra a imagem é o servidor (r2-confirm-upload), depois de conferir hash,
+ * formato e metadados do arquivo que chegou. O app não registra imagens sozinho.
  */
 import { CryptoDigestAlgorithm, digest } from 'expo-crypto';
 import type { DocumentPickerAsset } from 'expo-document-picker';
@@ -17,7 +19,7 @@ import type { DocumentPickerAsset } from 'expo-document-picker';
 import { env } from '@/config/env';
 import { deviceLabel } from '@/services/device';
 import { readAssetBytes } from '@/services/files';
-import { ApiError, invokeFunction, rpc } from '@/services/supabase';
+import { ApiError, invokeFunction } from '@/services/supabase';
 import type { RegisterImageResult, UploadBatchResult } from '@/types';
 import { ImageFormatError, type MetadataFinding, inspectImage, sanitizeImage } from '@/utils/imageMetadata';
 
@@ -28,6 +30,16 @@ export interface UploadUrlRequest {
   sha256: string;
   mime_type: string;
   size_bytes: number;
+  /** R-12: o arquivo vai para quarantine/ e só vira imagem depois do r2-confirm-upload. */
+  quarantine: true;
+}
+
+export interface ConfirmUploadRequest {
+  batch_id: string;
+  storage_key: string;
+  organ: string | null;
+  optical_magnification: string | null;
+  device: string;
 }
 
 export type UploadUrlResponse =
@@ -149,6 +161,7 @@ async function uploadOne(asset: DocumentPickerAsset, options: UploadOptions): Pr
     sha256,
     mime_type: image.mimeType,
     size_bytes: image.bytes.byteLength,
+    quarantine: true,
   } satisfies UploadUrlRequest);
 
   if (target.duplicate) {
@@ -164,19 +177,13 @@ async function uploadOne(asset: DocumentPickerAsset, options: UploadOptions): Pr
     return { status: 'rejected', reason: `O armazenamento recusou o arquivo (HTTP ${put.status}).`, hadMetadata };
   }
 
-  const registered = await rpc<RegisterImageResult>('register_image', {
-    p_batch_id: options.batchId,
-    p_sha256: sha256,
-    p_storage_key: target.storage_key,
-    p_mime_type: image.mimeType,
-    p_size_bytes: image.bytes.byteLength,
-    p_width_px: image.width,
-    p_height_px: image.height,
-    p_metadata_sanitized: image.fullySanitized,
-    p_organ: options.organ ?? null,
-    p_optical_magnification: options.opticalMagnification ?? null,
-    p_device: deviceLabel(),
-  });
+  const registered = await invokeFunction<RegisterImageResult>('r2-confirm-upload', {
+    batch_id: options.batchId,
+    storage_key: target.storage_key,
+    organ: options.organ ?? null,
+    optical_magnification: options.opticalMagnification ?? null,
+    device: deviceLabel(),
+  } satisfies ConfirmUploadRequest);
 
   if (registered.ok) {
     try {

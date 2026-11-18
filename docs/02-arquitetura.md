@@ -297,13 +297,13 @@ sequenceDiagram
     G->>App: Escolhe o lote e seleciona os arquivos
     loop Para cada arquivo
         App->>App: Valida tipo e tamanho, remove metadados (EXIF, GPS, textos) e calcula o SHA-256
-        App->>+EF: Pede URL de upload com lote e hash
+        App->>+EF: Pede URL de upload com lote, hash e quarantine: true
         EF->>DB: Confere se o lote é de um projeto do gestor e se o hash é novo
         alt Hash ainda não cadastrado
             EF-->>App: URL assinada de PUT, válida por 10 min
             deactivate EF
-            App->>ARQ: PUT do arquivo limpo
-            App->>DB: RPC register_image: imagem, versão 1, código LTxx-0001 e log UPLOAD
+            App->>ARQ: PUT do arquivo limpo em quarantine/...
+            App->>DB: r2-confirm-upload confere o arquivo e registra: imagem, versão 1, código LTxx-0001 e log UPLOAD (detalhe abaixo)
             opt Na web
                 App->>App: Pré-anotação por limiar de cor
                 App->>DB: RPC set_pre_annotation
@@ -315,7 +315,7 @@ sequenceDiagram
     App-->>G: Resumo com enviadas, duplicadas e recusadas
 ```
 
-**Envio conferido no servidor (R-12).** O fluxo acima confia no app para tirar os metadados e para declarar o hash. O fluxo novo não confia: o arquivo cai numa **quarentena** (`quarantine/<projeto>/<lote>/<sha256>.<ext>`, no mesmo bucket) e só vira imagem do lote depois que a função `r2-confirm-upload` o confere. A primeira parte do R-12 traz o backend; o app passa a usar este fluxo na segunda parte, e só então o `register_image` deixa de ser chamado pelo app.
+**Envio conferido no servidor (R-12).** O app tira os metadados antes de enviar, mas o servidor não confia nisso: o arquivo cai numa **quarentena** (`quarantine/<projeto>/<lote>/<sha256>.<ext>`, no mesmo bucket) e só vira imagem do lote depois que a função `r2-confirm-upload` o confere. Quem registra a imagem é o servidor; o `register_image` antigo, que confiava no hash e na higienização declarados pelo app, está fechado para o app (migração `20261118120000`).
 
 ```mermaid
 sequenceDiagram
@@ -659,7 +659,8 @@ Não há rotas REST próprias. O app usa as tabelas e views pelo PostgREST (semp
 | `verify_audit_chain` | Admin | Recalcula a cadeia de hashes e aponta a primeira quebra | RF-38 |
 | `log_auth_failure`, `count_login_failures` | Só o backend (`service_role`) | Registra a falha de login com o hash do e-mail e conta as falhas dos últimos 15 min por e-mail no IP, por IP e por e-mail (R-14, R-18) | RF-01, RNF-06 |
 | `admin_update_user` | Admin | Muda nome, papéis e ativa ou desativa a conta | RF-06, RF-07 |
-| `register_image`, `set_pre_annotation` | Gestor | Registra a imagem enviada ao R2 e guarda a pré-anotação | RF-08, RF-11, RF-17 |
+| `set_pre_annotation` | Gestor | Guarda a pré-anotação da imagem já registrada | RF-17 |
+| `register_image` | Só o backend (`service_role`) | Caminho antigo de registro; fechado para o app desde o R-12 (o app usa a `r2-confirm-upload`) | RF-08, RF-11 |
 | `register_verified_image`, `log_upload_rejected` | Só o backend (`service_role`) | Registra a imagem já conferida pela `r2-confirm-upload`, em nome do gestor, com a chave exata derivada do hash; ou registra a recusa no log (R-12) | RF-08, RF-11, RNF-07 |
 | `assign_evaluators`, `assign_evaluators_to_batch` | Gestor | Atribui imagens ou um lote inteiro a N avaliadores | RF-10, RF-29 |
 | `open_analysis` | Dono da análise | Abre a análise, com a última versão ou a pré-anotação | RF-18, RF-27, RF-28 |
@@ -688,7 +689,7 @@ O cegamento (RF-26 a RF-28) é garantido em quatro níveis, do mais externo ao m
 1. **Quem é você.** Sessão do Supabase Auth (JWT de curta duração com refresh token rotativo) que só vale depois do código 2FA. O app encerra a sessão depois de 30 min sem atividade (RF-05).
 2. **O que você pode fazer.** O app só lê as tabelas diretamente. As únicas escritas diretas são em perfis, projetos, lotes e labels, coluna por coluna e ainda filtradas pelo RLS. Todo o resto (imagens, análises, versões, validação e log) passa por uma função RPC que confere o papel e o dono.
 3. **O que você pode ver.** As políticas RLS filtram cada consulta pelo usuário do JWT: o avaliador só vê as próprias análises, o gestor só os próprios projetos, e o validador só vê imagens prontas que ele não anotou. A comparação entrega as análises como A, B, C, sem nomes. Pedir a análise de outra pessoa devolve **NOT_FOUND**, para não confirmar que ela existe, e grava `ACESSO_NEGADO` no log.
-4. **Como provamos.** A bateria pgTAP em `supabase/tests/database/` (R-05; hoje com 133 verificações, incluindo login sem e-mail no log e envio conferido) roda no CI a cada pull request, num Supabase local criado do zero pelas migrações. Ela cobre o RLS de cada papel (avaliador, validador, gestor, admin), o bloqueio sem 2FA, a imutabilidade de versões, resultado e log, RN-07, RF-29, RN-05, RN-08 e `verify_audit_chain()`. Para rodar localmente: `npx supabase db reset --local` e `npx supabase test db`.
+4. **Como provamos.** A bateria pgTAP em `supabase/tests/database/` (R-05; hoje com 137 verificações, incluindo login sem e-mail no log e envio conferido) roda no CI a cada pull request, num Supabase local criado do zero pelas migrações. Ela cobre o RLS de cada papel (avaliador, validador, gestor, admin), o bloqueio sem 2FA, a imutabilidade de versões, resultado e log, RN-07, RF-29, RN-05, RN-08 e `verify_audit_chain()`. Para rodar localmente: `npx supabase db reset --local` e `npx supabase test db`.
 
 ### O que o app recebe e o que fica no servidor
 

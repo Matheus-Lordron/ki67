@@ -57,7 +57,7 @@ npx supabase secrets set --env-file supabase/functions/.env
 npx supabase functions deploy
 ```
 
-As funções implantadas são `auth-login`, `auth-resend-2fa`, `admin-create-user`, `r2-upload-url`, `r2-confirm-upload` e `r2-download-url`. Aplique as migrações (`db push`) **antes** de implantar as funções: elas chamam RPCs criadas pelas migrações novas.
+As funções implantadas são `auth-login`, `auth-resend-2fa`, `admin-create-user`, `r2-upload-url`, `r2-confirm-upload` e `r2-download-url`. Aplique as migrações (`db push`) **antes** de implantar as funções: elas chamam RPCs criadas pelas migrações novas. Desde o R-12, o app atualizado envia pela `r2-confirm-upload` e o banco fecha o `register_image` para o app: entre o `db push` e o `functions deploy` o envio de imagens fica parado, então faça os dois em seguida e não envie imagens no meio. Depois, use o app da `main` atualizada (uma versão antiga do app recebe erro de permissão ao registrar imagens).
 
 ## 5. App
 
