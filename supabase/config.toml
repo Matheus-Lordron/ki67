@@ -18,3 +18,6 @@ verify_jwt = false
 
 [functions.r2-download-url]
 verify_jwt = false
+
+[functions.r2-confirm-upload]
+verify_jwt = false

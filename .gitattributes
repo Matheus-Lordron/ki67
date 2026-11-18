@@ -1,0 +1,4 @@
+# R-12: imagens de exemplo dos testes são binárias; o Git não pode mexer nos bytes.
+*.jpg binary
+*.png binary
+*.tif binary

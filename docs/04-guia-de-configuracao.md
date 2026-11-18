@@ -25,7 +25,8 @@ Passo a passo para sair do modo demonstração e usar dados reais. Sem o `.env` 
    [{ "AllowedOrigins": ["http://localhost:8081"], "AllowedMethods": ["GET", "PUT", "HEAD"], "AllowedHeaders": ["content-type", "x-amz-checksum-sha256"], "MaxAgeSeconds": 3600 }]
    ```
    O `x-amz-checksum-sha256` é obrigatório desde o R-11: a URL de envio amarra o tamanho, o tipo e o SHA-256 do arquivo, e o R2 recusa um arquivo diferente do declarado. **Num bucket que já existe, atualize a política antes de implantar a nova `r2-upload-url`**, senão o envio pela versão web falha. O app no Android e no iPhone não passa pelo CORS.
-3. Em **R2 > Manage API tokens > Create API token**, dê a permissão **Object Read & Write** só nesse bucket. Anote o **Access Key ID** e o **Secret Access Key**. O **Account ID** aparece na página inicial do R2.
+3. Ainda em **Settings**, abra **Object lifecycle rules > Add rule** e crie a regra da quarentena (R-12): nome `limpa-quarentena`, prefixo `quarantine/`, ação **Delete objects** depois de **1 dia**. Ela apaga envios abandonados no meio. **Não** crie regra para `projects/`: ali ficam as imagens registradas.
+4. Em **R2 > Manage API tokens > Create API token**, dê a permissão **Object Read & Write** só nesse bucket. Anote o **Access Key ID** e o **Secret Access Key**. O **Account ID** aparece na página inicial do R2.
 
 ## 3. E-mail do código 2FA (Resend)
 
@@ -56,7 +57,7 @@ npx supabase secrets set --env-file supabase/functions/.env
 npx supabase functions deploy
 ```
 
-As funções implantadas são `auth-login`, `auth-resend-2fa`, `admin-create-user`, `r2-upload-url` e `r2-download-url`.
+As funções implantadas são `auth-login`, `auth-resend-2fa`, `admin-create-user`, `r2-upload-url`, `r2-confirm-upload` e `r2-download-url`. Aplique as migrações (`db push`) **antes** de implantar as funções: elas chamam RPCs criadas pelas migrações novas.
 
 ## 5. App
 

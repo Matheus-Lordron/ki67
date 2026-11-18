@@ -13,6 +13,10 @@
  * PNG:  remove os chunks tEXt, zTXt, iTXt, eXIf e tIME.
  * TIFF: zera, no lugar, o conteúdo das tags de texto, XMP, IPTC e das sub-IFDs
  *       EXIF e GPS. O arquivo mantém o mesmo tamanho e a mesma estrutura.
+ *
+ * R-12: o servidor confere de novo com supabase/functions/_shared/imageInspect.ts, a
+ * cópia só de leitura destas regras. Ao mudar uma regra aqui, mude lá também e regere as
+ * imagens de exemplo (tests/fixtures/imagens/gerar.ts): os testes dos dois lados as leem.
  */
 
 export type SupportedMime = 'image/jpeg' | 'image/png' | 'image/tiff';
