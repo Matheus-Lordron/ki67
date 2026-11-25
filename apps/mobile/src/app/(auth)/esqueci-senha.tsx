@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { CheckCircle2, KeyRound, Mail } from 'lucide-react-native';
+import { CheckCircle2 } from 'lucide-react-native';
 import { useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 
@@ -24,18 +24,13 @@ export default function ForgotPasswordScreen() {
   };
 
   return (
-    <AuthShell
-      maxWidth={420}
-      headerLeft={<BackLink label="Retornar ao Login" onPress={() => router.replace('/login')} />}
-      headerRight={<Text className="hidden font-mono text-xs text-ink-subtle sm:flex">RECUPERAÇÃO DE ACESSO</Text>}
-      footer={<Text className="text-center font-sans text-xs text-ink-subtle">Segmenta Studio · Segurança e rastreabilidade</Text>}
-    >
-      <AuthCard icon={KeyRound} title="Recuperar Senha" subtitle="Informe seu e-mail institucional para receber um link de uso único, válido por 30 minutos.">
+    <AuthShell headerRight={<BackLink label="Voltar ao login" onPress={() => router.replace('/login')} />}>
+      <AuthCard title="Recuperar senha" subtitle="Informe seu e-mail institucional para receber um link de uso único, válido por 30 minutos.">
         {sent ? (
           <Callout tone="success" icon={CheckCircle2} title="Link de recuperação enviado">
             <View className="gap-3">
               {/* Mesma resposta para e-mail cadastrado ou não (RF-03) */}
-              <Text className="font-sans text-[11px] leading-4 text-emerald-700">
+              <Text className="font-sans text-[13px] leading-5 text-emerald-800">
                 Se o e-mail {email} estiver cadastrado, você receberá as instruções em instantes.
               </Text>
               <Button label="Simular clique no link recebido" size="sm" onPress={() => router.push('/redefinir-senha')} />
@@ -44,22 +39,21 @@ export default function ForgotPasswordScreen() {
         ) : (
           <>
             <TextField
-              label="E-mail institucional cadastrado"
-              icon={Mail}
+              label="E-mail institucional"
               value={email}
               onChangeText={setEmail}
-              placeholder="patologista@instituto.org.br"
+              placeholder="nome@instituto.org.br"
               keyboardType="email-address"
               autoCapitalize="none"
               autoComplete="email"
               onSubmitEditing={submit}
             />
-            <Button label="Enviar Link de Redefinição" onPress={submit} loading={loading} disabled={!email.trim()} />
+            <Button label="Enviar link de redefinição" size="lg" className="w-full" onPress={submit} loading={loading} disabled={!email.trim()} />
           </>
         )}
-        <View className="items-center border-t border-surface-alt pt-4">
-          <Pressable onPress={() => router.replace('/login')} accessibilityRole="link" className="min-h-11 justify-center">
-            <Text className="font-sans-semibold text-xs text-primary">Lembrou sua senha? Voltar ao login</Text>
+        <View className="items-center border-t border-line-soft pt-4">
+          <Pressable onPress={() => router.replace('/login')} accessibilityRole="link" className="min-h-10 justify-center">
+            <Text className="font-sans-semibold text-[13px] text-primary">Lembrou sua senha? Voltar ao login</Text>
           </Pressable>
         </View>
       </AuthCard>

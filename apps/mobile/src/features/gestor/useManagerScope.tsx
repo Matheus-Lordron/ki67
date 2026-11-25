@@ -4,7 +4,6 @@ import { Text, View } from 'react-native';
 
 import { Select } from '@/components/ui/Select';
 import { useAppStore } from '@/state/appStore';
-import { colors } from '@/theme/colors';
 
 /**
  * Recorte do gestor: só os projetos que ele gerencia (RF-09) e, dentro do
@@ -30,29 +29,28 @@ export function useManagerScope() {
   }, [user, projects, allBatches, allImages, allAnalyses, activeProjectId]);
 }
 
-/** Seletor do projeto em foco (aparece quando o gestor tem mais de um projeto). */
-export function ProjectPicker() {
+/** Seletor do projeto em foco no formato do Figma (campo "Projeto" com dropdown). */
+export function ProjectPicker({ label = 'Projeto' }: { label?: string }) {
   const { managed, project } = useManagerScope();
   const setActiveProjectId = useAppStore((s) => s.setActiveProjectId);
   if (!project) {
     return (
-      <View className="flex-row items-center gap-2 rounded-xs border border-amber-300 bg-amber-50 p-3">
+      <View className="flex-row items-center gap-2 rounded-[10px] border border-amber-300 bg-amber-50 px-3.5 py-2.5">
         <FolderKanban size={16} color="#b45309" />
-        <Text className="font-sans text-xs text-amber-900">Você ainda não é gestor de nenhum projeto. Peça ao administrador para designá-lo.</Text>
+        <Text className="font-sans text-[13px] text-amber-900">
+          Você ainda não é gestor de nenhum projeto. Peça ao administrador para designá-lo.
+        </Text>
       </View>
     );
   }
   return (
-    <View className="flex-row flex-wrap items-center gap-2">
-      <FolderKanban size={16} color={colors.primary} />
-      <Text className="font-sans-semibold text-xs text-ink">Projeto:</Text>
-      {managed.length > 1 ? (
-        <Select compact value={project.id} onChange={setActiveProjectId} options={managed.map((p) => ({ value: p.id, label: p.name, description: p.code }))} />
-      ) : (
-        <Text className="font-sans text-xs text-primary">
-          {project.name} <Text className="font-mono text-[11px] text-ink-subtle">({project.code})</Text>
-        </Text>
-      )}
+    <View className="min-w-[240px]">
+      <Select
+        label={label}
+        value={project.id}
+        onChange={setActiveProjectId}
+        options={managed.map((p) => ({ value: p.id, label: p.name, description: p.code }))}
+      />
     </View>
   );
 }

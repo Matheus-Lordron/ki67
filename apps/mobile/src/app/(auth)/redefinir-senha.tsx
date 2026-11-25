@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { AlertCircle, CheckCircle2, KeyRound } from 'lucide-react-native';
+import { AlertCircle, CheckCircle2 } from 'lucide-react-native';
 import { useState } from 'react';
 import { Text, View } from 'react-native';
 
@@ -28,35 +28,46 @@ export default function ResetPasswordScreen() {
   };
 
   return (
-    <AuthShell
-      maxWidth={420}
-      headerLeft={<BackLink label="Cancelar e Retornar" onPress={() => router.replace('/login')} />}
-      headerRight={<Text className="hidden font-mono text-xs text-ink-subtle sm:flex">NOVA SENHA DE ACESSO</Text>}
-      footer={<Text className="text-center font-sans text-xs text-ink-subtle">Segmenta Studio · Ao redefinir, todas as sessões abertas são encerradas</Text>}
-    >
-      <AuthCard icon={KeyRound} title="Definir Nova Senha" subtitle="Crie uma senha forte de acordo com os requisitos institucionais de segurança.">
+    <AuthShell headerRight={<BackLink label="Voltar ao login" onPress={() => router.replace('/login')} />}>
+      <AuthCard title="Nova senha" subtitle="Crie uma senha forte para acessar o Segmenta Studio.">
         {error ? (
           <Callout tone="danger" icon={AlertCircle}>
             {error}
           </Callout>
         ) : null}
         {done ? (
-          <Callout tone="success" icon={CheckCircle2} title="Senha atualizada com sucesso!">
+          <Callout tone="success" icon={CheckCircle2} title="Senha atualizada com sucesso">
             <View className="gap-3">
-              <Text className="font-sans text-[11px] text-emerald-700">Entre novamente com a nova senha.</Text>
-              <Button label="Ir para a Tela de Login" size="sm" onPress={() => router.replace('/login')} />
+              <Text className="font-sans text-[13px] text-emerald-800">Entre novamente com a nova senha.</Text>
+              <Button label="Ir para o login" size="sm" onPress={() => router.replace('/login')} />
             </View>
           </Callout>
         ) : (
           <>
-            <TextField label="Nova senha de acesso" value={password} onChangeText={setPassword} placeholder="Mínimo 8 caracteres" secureTextEntry autoComplete="new-password" textContentType="newPassword" />
-            <TextField label="Confirmação da nova senha" value={confirm} onChangeText={setConfirm} placeholder="Repita a nova senha" secureTextEntry autoComplete="new-password" onSubmitEditing={submit} />
-            <View className="gap-1 rounded-xs bg-surface-alt p-2.5">
-              <Text className="font-sans-semibold text-[11px] text-primary">Requisitos da senha:</Text>
-              <Text className="font-sans text-[11px] text-ink-muted">• Mínimo de 8 caracteres</Text>
-              <Text className="font-sans text-[11px] text-ink-muted">• Ao menos uma letra maiúscula e um número</Text>
+            <TextField
+              label="Nova senha"
+              value={password}
+              onChangeText={setPassword}
+              placeholder="Mínimo 8 caracteres"
+              secureTextEntry
+              autoComplete="new-password"
+              textContentType="newPassword"
+            />
+            <TextField
+              label="Confirmar nova senha"
+              value={confirm}
+              onChangeText={setConfirm}
+              placeholder="Repita a nova senha"
+              secureTextEntry
+              autoComplete="new-password"
+              onSubmitEditing={submit}
+            />
+            <View className="gap-1 rounded-[10px] bg-surface-subtle p-3.5">
+              <Text className="font-sans-semibold text-[12px] text-ink">Requisitos da senha</Text>
+              <Text className="font-sans text-[12px] text-ink-muted">• Mínimo de 8 caracteres</Text>
+              <Text className="font-sans text-[12px] text-ink-muted">• Ao menos uma letra maiúscula e um número</Text>
             </View>
-            <Button label="Salvar Nova Senha & Concluir" onPress={submit} />
+            <Button label="Salvar nova senha" size="lg" className="w-full" onPress={submit} />
           </>
         )}
       </AuthCard>

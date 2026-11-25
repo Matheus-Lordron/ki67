@@ -1,6 +1,5 @@
-import { Image } from 'expo-image';
 import { router } from 'expo-router';
-import { ArrowRight, CheckCircle, CheckCircle2, Clock, Layers, Microscope, Search, Tag } from 'lucide-react-native';
+import { Layers, Search } from 'lucide-react-native';
 import { useMemo, useState } from 'react';
 import { Text, View } from 'react-native';
 
@@ -12,11 +11,12 @@ import { Screen } from '@/components/ui/Screen';
 import { Select } from '@/components/ui/Select';
 import { useRefreshOnFocus } from '@/features/sessao/useRefreshOnFocus';
 import { useAppStore } from '@/state/appStore';
-import { colors } from '@/theme/colors';
 import { formatKi67 } from '@/utils/ki67';
 
 const fmtDate = (iso?: string) =>
-  iso ? new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Ainda não iniciado';
+  iso
+    ? `${new Date(iso).toLocaleDateString('pt-BR')}, ${new Date(iso).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`
+    : 'Ainda não iniciado';
 
 // Abas Pendentes e Avaliadas (RF-22, RF-24). Só aparecem imagens atribuídas ao usuário (RN-03).
 export default function EvaluatorHome() {
@@ -46,37 +46,25 @@ export default function EvaluatorHome() {
   };
 
   return (
-    <Screen>
+    <Screen maxWidth={1160}>
       <PageHeader
-        title="Minha Fila de Anotação Ki-67"
-        badge="PROTOCOLO CEGO ATIVO"
-        description="Quantificação nuclear de proliferação celular. Cada análise fica isolada até a comparação das N análises."
-        actions={
-          <View className="flex-row gap-4 border-l border-surface-alt pl-4">
-            <View className="items-end">
-              <Text className="font-mono text-[11px] uppercase text-ink-subtle">Pendentes</Text>
-              <Text className="font-mono-bold text-lg text-primary">{pending.length}</Text>
-            </View>
-            <View className="items-end">
-              <Text className="font-mono text-[11px] uppercase text-ink-subtle">Avaliadas</Text>
-              <Text className="font-mono-bold text-lg text-emerald-700">{evaluated.length}</Text>
-            </View>
-          </View>
-        }
+        title="Minha fila"
+        description="Lâminas atribuídas a você. Cada análise fica isolada até a comparação."
       />
 
-      <View className="gap-3 border-b border-line pb-3 sm:flex-row sm:items-center sm:justify-between">
+      <View className="flex-row flex-wrap items-center justify-between gap-4">
         <Segmented
           value={tab}
           onChange={setTab}
           options={[
-            { value: 'pendentes', label: `Pendentes (${pending.length})`, icon: Clock },
-            { value: 'avaliadas', label: `Avaliadas (${evaluated.length})`, icon: CheckCircle2 },
+            { value: 'pendentes', label: 'Pendentes', count: pending.length },
+            { value: 'avaliadas', label: 'Avaliadas', count: evaluated.length },
           ]}
         />
-        <View className="flex-row items-center gap-2 sm:w-[420px]">
-          <View className="flex-1">
-            <TextField icon={Search} value={search} onChangeText={setSearch} placeholder="Buscar por código ou lote..." />
+
+        <View className="flex-row flex-wrap items-center gap-3">
+          <View className="w-[260px] sm:w-[300px]">
+            <TextField icon={Search} value={search} onChangeText={setSearch} placeholder="Código ou lote" />
           </View>
           <Select
             compact
@@ -90,53 +78,50 @@ export default function EvaluatorHome() {
       {shown.length === 0 ? (
         <EmptyState
           icon={Layers}
-          title={tab === 'pendentes' ? 'Nenhuma imagem pendente no momento' : 'Nenhuma imagem avaliada ainda'}
+          title={tab === 'pendentes' ? 'Nenhuma lâmina pendente no momento' : 'Nenhuma lâmina avaliada ainda'}
           description={
             tab === 'pendentes'
-              ? 'Você concluiu todas as análises atribuídas. Novos lotes aparecem aqui quando o gestor atribuir.'
-              : 'Ao finalizar uma análise na tela de anotação, ela fica arquivada nesta aba para consulta.'
+              ? 'Você concluiu todas as análises atribuídas. Novos lotes aparecerão aqui quando atribuídos pelo gestor.'
+              : 'Ao finalizar uma análise na tela de anotação, ela fica disponível nesta aba para consulta.'
           }
         />
       ) : (
-        <Grid>
+        <Grid cols={{ base: 1, md: 2, lg: 3 }} gap={20}>
           {shown.map((img) => {
             const analysis = analysisOf(img.id);
             const finalized = analysis?.status === 'finalizada';
             const started = !!analysis;
             return (
-              <Card key={img.id} className="h-full justify-between p-4">
-                <View>
-                  <View className="mb-2 flex-row items-center justify-between">
-                    <View className="flex-row items-center gap-1.5">
-                      <Tag size={14} color={colors.primary} />
-                      <Text className="font-mono-bold text-sm text-primary">{img.code}</Text>
+              <Card key={img.id} className="h-full justify-between gap-5 p-7">
+                <View className="gap-5">
+                  <View className="flex-row items-start justify-between gap-2">
+                    <View className="flex-1 gap-1">
+                      <Text className="font-sans-black text-[22px] leading-[26.4px] tracking-[-0.44px] text-ink">
+                        {img.code}
+                      </Text>
+                      <Text numberOfLines={1} className="font-sans text-[14px] text-ink-muted">
+                        {img.batchName}
+                      </Text>
                     </View>
                     {finalized ? (
-                      <Badge label="Finalizada" tone="success" icon={CheckCircle} />
+                      <Badge label="Finalizada" tone="primary" dot="solid" />
                     ) : started ? (
-                      <Badge label="Em andamento" tone="warning" icon={Clock} />
+                      <Badge label="Em andamento" tone="warning" dot="hollow" />
                     ) : (
-                      <Badge label="Pendente" tone="neutral" />
+                      <Badge label="Pendente" tone="warning" dot="hollow" />
                     )}
                   </View>
-                  <Text numberOfLines={1} className="font-sans-semibold text-xs text-ink">{img.batchName}</Text>
-                  <Text numberOfLines={1} className="mb-3 font-sans text-[11px] text-ink-subtle">{img.organ}</Text>
-                  <View className="relative mb-3 h-32 overflow-hidden rounded-xs border border-line bg-slate-800">
-                    <Image source={{ uri: img.imageUrl }} contentFit="cover" cachePolicy="none" style={{ width: '100%', height: '100%', opacity: 0.9 }} />
-                    <View className="absolute bottom-1.5 right-1.5 rounded-xs bg-ink/80 px-1.5 py-0.5">
-                      <Text className="font-mono text-[10px] text-white">{img.opticalMagnification}</Text>
-                    </View>
-                  </View>
-                  <View className="mb-3 gap-1">
-                    <KeyValue label="Núcleos anotados:" value={analysis ? `${analysis.marks.length} núcleos` : '0 núcleos (novo)'} />
-                    <KeyValue label="Último salvamento:" value={fmtDate(analysis?.lastSavedAt)} />
-                    {finalized ? <KeyValue label="Índice Ki-67:" value={formatKi67(analysis?.history[0]?.ki67Index)} valueClassName="text-primary" /> : null}
+
+                  <View>
+                    <KeyValue label="Núcleos anotados" value={analysis ? analysis.marks.length : 0} bordered />
+                    <KeyValue label="Último salvamento" value={fmtDate(analysis?.lastSavedAt)} bordered={finalized} />
+                    {finalized ? <KeyValue label="Índice Ki-67" value={formatKi67(analysis?.history[0]?.ki67Index)} /> : null}
                   </View>
                 </View>
+
                 <Button
-                  label={finalized ? 'Visualizar Análise Finalizada' : started ? 'Continuar Anotação' : 'Iniciar Anotação'}
-                  icon={Microscope}
-                  iconRight={ArrowRight}
+                  label={finalized ? 'Ver análise finalizada' : started ? 'Continuar anotação' : 'Iniciar anotação'}
+                  className="w-full"
                   onPress={() => open(img.id, finalized)}
                 />
               </Card>

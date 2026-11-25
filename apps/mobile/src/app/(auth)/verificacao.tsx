@@ -1,5 +1,5 @@
 import { Redirect, router } from 'expo-router';
-import { AlertCircle, KeyRound, RefreshCw, ShieldCheck } from 'lucide-react-native';
+import { AlertCircle, RefreshCw } from 'lucide-react-native';
 import { type ComponentRef, useEffect, useRef, useState } from 'react';
 import { Pressable, Text, TextInput, View } from 'react-native';
 
@@ -36,8 +36,10 @@ export default function TwoFactorScreen() {
     const clean = value.replace(/\D/g, '');
     const next = [...digits];
     if (clean.length > 1) {
-      // colar o código inteiro
-      clean.slice(0, 6 - index).split('').forEach((c, i) => (next[index + i] = c));
+      clean
+        .slice(0, 6 - index)
+        .split('')
+        .forEach((c, i) => (next[index + i] = c));
       setDigits(next);
       inputs.current[Math.min(5, index + clean.length)]?.focus();
       return;
@@ -74,17 +76,12 @@ export default function TwoFactorScreen() {
   };
 
   return (
-    <AuthShell
-      maxWidth={420}
-      headerLeft={<BackLink label="Retornar ao Login" onPress={() => router.replace('/login')} />}
-      headerRight={<Text className="hidden font-mono text-xs text-ink-subtle sm:flex">FATOR DUPLO DE AUTENTICAÇÃO (2FA)</Text>}
-      footer={<Text className="text-center font-sans text-xs text-ink-subtle">Segmenta Studio · Protocolo de anonimização duplo-cego</Text>}
-    >
-      <AuthCard icon={KeyRound} title="Autenticação em Duas Etapas" subtitle="Um código de 6 dígitos foi enviado para o seu e-mail institucional cadastrado.">
-        <View className="flex-row items-center justify-between rounded-xs border border-line bg-surface-alt px-3 py-2">
-          <Text className="font-mono text-xs text-ink-muted">Validade do código:</Text>
-          <Text className={`font-mono-bold text-xs ${expired ? 'text-danger' : timeLeft < 60 ? 'text-amber-700' : 'text-primary'}`}>
-            {expired ? 'EXPIRADO' : `${formatTime(timeLeft)} min`}
+    <AuthShell headerRight={<BackLink label="Voltar ao login" onPress={() => router.replace('/login')} />}>
+      <AuthCard title="Verificação" subtitle="Digite o código de 6 dígitos enviado para o seu e-mail institucional.">
+        <View className="flex-row items-center justify-between rounded-[10px] bg-surface-alt px-3.5 py-2.5">
+          <Text className="font-sans text-[13px] text-ink-muted">Validade do código</Text>
+          <Text className={`font-sans-bold text-[13px] ${expired ? 'text-danger' : timeLeft < 60 ? 'text-amber-700' : 'text-primary'}`}>
+            {expired ? 'Expirado' : `${formatTime(timeLeft)} min`}
           </Text>
         </View>
 
@@ -114,19 +111,24 @@ export default function TwoFactorScreen() {
               accessibilityLabel={`Dígito ${i + 1}`}
               selectTextOnFocus
               onSubmitEditing={submit}
-              className="h-14 w-11 min-w-0 rounded-xs border-2 border-line bg-surface text-center font-mono-bold text-xl text-ink focus:border-primary web:outline-none"
+              className="h-14 flex-1 rounded-[10px] border border-line-input bg-white text-center font-sans-black text-xl text-ink focus:border-primary web:outline-none"
             />
           ))}
         </View>
-        {isDemo ? <Text className="text-center font-mono text-[10px] text-ink-subtle">Modo demonstração: qualquer código de 6 dígitos é aceito.</Text> : null}
 
-        <Button label="Confirmar Código & Acessar" icon={ShieldCheck} size="lg" onPress={submit} loading={loading} />
+        {isDemo ? (
+          <Text className="text-center font-sans text-[12px] text-ink-subtle">
+            Modo demonstração: qualquer código de 6 dígitos é aceito.
+          </Text>
+        ) : null}
 
-        <View className="flex-row items-center justify-between border-t border-surface-alt pt-4">
-          <Text className="font-sans text-xs text-ink-subtle">Não recebeu o e-mail?</Text>
-          <Pressable onPress={resend} className="min-h-11 flex-row items-center gap-1" accessibilityRole="button">
+        <Button label="Confirmar código" size="lg" className="w-full" onPress={submit} loading={loading} />
+
+        <View className="flex-row items-center justify-between border-t border-line-soft pt-4">
+          <Text className="font-sans text-[13px] text-ink-muted">Não recebeu o e-mail?</Text>
+          <Pressable onPress={resend} className="min-h-10 flex-row items-center gap-1.5" accessibilityRole="button">
             <RefreshCw size={14} color={colors.primary} />
-            <Text className="font-sans-semibold text-xs text-primary">Reenviar código</Text>
+            <Text className="font-sans-semibold text-[13px] text-primary">Reenviar código</Text>
           </Pressable>
         </View>
       </AuthCard>

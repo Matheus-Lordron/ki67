@@ -7,5 +7,5 @@ export default function AuthLayout() {
   const role = useAppStore((s) => s.activeRole);
   // Quem já entrou não volta para as telas públicas.
   if (user) return <Redirect href={roleHome(role)} />;
-  return <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: '#f8f9ff' } }} />;
+  return <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: '#ffffff' } }} />;
 }

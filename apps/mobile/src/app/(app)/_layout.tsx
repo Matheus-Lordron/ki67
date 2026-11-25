@@ -31,9 +31,9 @@ export default function AppLayout() {
   }
 
   return (
-    <View className="flex-1 bg-surface" onTouchStart={markActivity}>
+    <View className="flex-1 bg-white" onTouchStart={markActivity}>
       <TopHeader />
-      <Stack screenOptions={{ headerShown: false, animation: 'none', contentStyle: { backgroundColor: '#f8f9ff' } }} />
+      <Stack screenOptions={{ headerShown: false, animation: 'none', contentStyle: { backgroundColor: '#ffffff' } }} />
     </View>
   );
 }
