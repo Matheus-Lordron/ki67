@@ -15,8 +15,12 @@ export default function ProjectAuditScreen() {
   const involved = users.filter((u) => projectLogs.some((l) => l.userId === u.id));
 
   return (
-    <Screen>
-      <PageHeader title="Log de Auditoria do Projeto" badge="RASTREABILIDADE" description={<ProjectPicker />} />
+    <Screen maxWidth={1024}>
+      <PageHeader
+        title="Auditoria"
+        description="Registro contínuo de lotes, imagens, atribuições, anotações e exportações do projeto."
+        actions={<ProjectPicker />}
+      />
       <AuditLogView logs={projectLogs} users={involved} images={images} />
     </Screen>
   );

@@ -9,12 +9,10 @@ export default function SystemAuditScreen() {
   const users = useAppStore((s) => s.users);
   const images = useAppStore((s) => s.images);
   return (
-    <Screen>
+    <Screen maxWidth={1024}>
       <PageHeader
-        title="Log de Auditoria Global do Sistema"
-        badge="SOMENTE-INCLUSÃO"
-        badgeTone="success"
-        description="Registro contínuo de autenticações, anotações, validações, uploads, atribuições e mudanças de usuário."
+        title="Log"
+        description="Registro de acessos, anotações, validações, uploads e mudanças de usuário."
       />
       <AuditLogView logs={logs} users={users} images={images} />
     </Screen>

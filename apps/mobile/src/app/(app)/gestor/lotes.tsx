@@ -1,10 +1,10 @@
 import type { DocumentPickerAsset } from 'expo-document-picker';
-import { AlertTriangle, CheckCircle2, FileImage, Plus, UploadCloud } from 'lucide-react-native';
+import { AlertTriangle, CheckCircle2, FileImage, Layers, Upload } from 'lucide-react-native';
 import { useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 
 import { Button } from '@/components/ui/Button';
-import { Badge, Callout, Card, EmptyState, KeyValue, PageHeader } from '@/components/ui/Card';
+import { Callout, Card, EmptyState, PageHeader } from '@/components/ui/Card';
 import { Dialog } from '@/components/ui/Dialog';
 import { TextField } from '@/components/ui/Field';
 import { Grid } from '@/components/ui/Grid';
@@ -52,7 +52,7 @@ export default function BatchesAndImagesScreen() {
       showToast(result.error);
       return;
     }
-    showToast(`Lote "${name.trim()}" criado.`);
+    showToast(`Lote criado: ${name.trim()} já está na lista.`);
     setCreateOpen(false);
     setName('');
     setN('3');
@@ -79,59 +79,84 @@ export default function BatchesAndImagesScreen() {
 
   const upload = async () => {
     if (!batchId || !picked.length) return;
-    // Higieniza metadados, calcula o SHA-256 e envia (modo real: R2 + register_image + pré-anotação).
     const result = await uploadImages(batchId, picked, setProgress);
     setSummary(result);
     setPicked([]);
     setReports([]);
     setProgress(null);
-    showToast(`Upload concluído: ${result.uploaded.length} enviadas, ${result.duplicates.length} duplicadas, ${result.rejected.length} recusadas.`);
+    showToast(`Upload concluído: ${result.uploaded.length} enviada(s), ${result.duplicates.length} duplicada(s), ${result.rejected.length} recusada(s).`);
   };
 
   const withMetadata = reports.filter((r) => r.findings.length);
 
   return (
-    <Screen>
+    <Screen maxWidth={1240}>
       <PageHeader
-        title="Gerenciamento de Lotes e Imagens IHC"
-        description={<ProjectPicker />}
+        title="Lotes"
+        description="Gerencie os lotes e as imagens do projeto."
         actions={
           <>
-            <Button label={`Upload em lote (até ${env.uploadMaxMb} MB)`} icon={UploadCloud} variant="outline" disabled={!batches.length} onPress={() => openUpload()} />
-            <Button label="Criar Novo Lote" icon={Plus} disabled={!project} onPress={openCreate} />
+            <ProjectPicker />
+            <Button label="Upload de imagens" variant="outline" disabled={!batches.length} onPress={() => openUpload()} />
+            <Button label="Novo lote" disabled={!project} onPress={openCreate} />
           </>
         }
       />
 
       {batches.length === 0 ? (
-        <EmptyState icon={FileImage} title="Nenhum lote neste projeto" description="Crie um lote, defina quantos avaliadores cada imagem recebe (N) e envie as imagens." />
+        <EmptyState
+          icon={FileImage}
+          title="Nenhum lote neste projeto"
+          description="Crie um lote, defina quantos avaliadores cada imagem recebe (N) e envie as lâminas."
+        />
       ) : (
-        <Grid>
+        <Grid cols={{ base: 1, md: 2, lg: 3 }} gap={24}>
           {batches.map((b) => {
             const count = images.filter((i) => i.batchId === b.id).length;
             return (
-              <Card key={b.id} className="h-full justify-between">
-                <View>
-                  <View className="mb-2 flex-row items-center justify-between">
-                    <Badge label={`N = ${b.evaluatorsPerImage} avaliadores/img`} />
-                    <Text className="font-mono text-[11px] text-ink-subtle">{new Date(b.createdAt).toLocaleDateString('pt-BR')}</Text>
+              <Card key={b.id} className="h-full justify-between gap-6 p-7">
+                <View className="gap-6">
+                  <View className="flex-row items-center gap-3.5">
+                    <Layers size={26} color={colors.primary} />
+                    <View className="flex-1 gap-1">
+                      <Text numberOfLines={1} className="font-sans-black text-[22px] leading-[26.4px] tracking-[-0.44px] text-ink">
+                        {b.name}
+                      </Text>
+                      <Text numberOfLines={2} className="font-sans text-[14px] leading-[21px] text-ink-muted">
+                        {b.description || 'Sem descrição.'}
+                      </Text>
+                    </View>
                   </View>
-                  <Text className="mb-1 font-sans-bold text-base text-ink">{b.name}</Text>
-                  <Text className="mb-4 font-sans text-xs leading-5 text-ink-muted">{b.description || 'Sem descrição.'}</Text>
-                  <View className="mb-4 gap-1 rounded-xs border border-line bg-surface p-3">
-                    <KeyValue label="Imagens no lote:" value={`${count} lâminas`} />
-                    <KeyValue label="Criado por:" value={b.createdBy} />
+
+                  <View className="gap-5 border-t border-line pt-6">
+                    <View className="flex-row gap-4">
+                      <View className="flex-1 gap-1.5">
+                        <Text className="font-sans-semibold text-[13px] text-ink-muted">Avaliadores por imagem</Text>
+                        <Text className="font-sans-black text-[22px] text-ink">{b.evaluatorsPerImage}</Text>
+                      </View>
+                      <View className="flex-1 gap-1.5">
+                        <Text className="font-sans-semibold text-[13px] text-ink-muted">Imagens</Text>
+                        <Text className="font-sans-black text-[22px] text-ink">{count}</Text>
+                      </View>
+                    </View>
+                    <View className="flex-row gap-4">
+                      <View className="flex-1 gap-1.5">
+                        <Text className="font-sans-semibold text-[13px] text-ink-muted">Criado em</Text>
+                        <Text className="font-sans-bold text-[16px] text-ink">
+                          {new Date(b.createdAt).toLocaleDateString('pt-BR')}
+                        </Text>
+                      </View>
+                      <View className="flex-1 gap-1.5">
+                        <Text className="font-sans-semibold text-[13px] text-ink-muted">Criado por</Text>
+                        <Text numberOfLines={2} className="font-sans-bold text-[14px] text-ink">
+                          {b.createdBy}
+                        </Text>
+                      </View>
+                    </View>
                   </View>
                 </View>
-                <View className="flex-row items-center justify-between border-t border-surface-alt pt-3">
-                  <View className="flex-row items-center gap-1">
-                    <CheckCircle2 size={14} color="#047857" />
-                    <Text className="font-sans-semibold text-[11px] text-emerald-700">Protocolo cego ativo</Text>
-                  </View>
-                  <Pressable onPress={() => openUpload(b.id)} className="min-h-11 justify-center">
-                    <Text className="font-sans-semibold text-xs text-primary">Adicionar lâminas</Text>
-                  </Pressable>
-                </View>
+
+                <Button label="Adicionar lâminas" variant="outline" className="min-h-[44px] w-full" onPress={() => openUpload(b.id)} />
               </Card>
             );
           })}
@@ -141,88 +166,129 @@ export default function BatchesAndImagesScreen() {
       <Dialog
         visible={createOpen}
         onClose={() => setCreateOpen(false)}
-        title="Criar novo lote de anotação"
-        subtitle="Defina o nome e N avaliadores por imagem (mínimo 1, padrão 3)"
+        title="Novo lote"
+        subtitle="Defina o nome e quantos avaliadores independentes cada imagem recebe."
         footer={
           <>
-            <Button label="Cancelar" variant="outline" onPress={() => setCreateOpen(false)} />
-            <Button label="Salvar e criar lote" onPress={submitBatch} loading={creatingBatch} disabled={!name.trim()} />
+            <Button label="Cancelar" variant="neutral" onPress={() => setCreateOpen(false)} />
+            <Button label="Criar lote" onPress={submitBatch} loading={creatingBatch} disabled={!name.trim()} />
           </>
         }
       >
-        <TextField label="Nome do lote *" value={name} onChangeText={setName} placeholder="Ex.: Lote #845 - Biópsias gástricas Ki-67" />
-        <View>
-          <TextField label="Avaliadores por imagem (N) *" value={n} onChangeText={(v) => setN(v.replace(/\D/g, '').slice(0, 2))} keyboardType="number-pad" mono />
-          <Text className="mt-1 font-sans text-[10px] text-ink-subtle">Quantas análises independentes e cegas cada imagem precisa antes de ir para a validação. Com N = 1 não há comparação.</Text>
+        <TextField label="Nome do lote" value={name} onChangeText={setName} placeholder="Lote #845 - Biópsias gástricas Ki-67" />
+        <View className="gap-1.5">
+          <TextField
+            label="Avaliadores por imagem (N)"
+            value={n}
+            onChangeText={(v) => setN(v.replace(/\D/g, '').slice(0, 2))}
+            keyboardType="number-pad"
+          />
+          <Text className="font-sans text-[13px] leading-[19.5px] text-ink-muted">
+            Quantas análises independentes e cegas cada imagem precisa antes da validação (padrão 3).
+          </Text>
         </View>
-        <TextField label="Descrição do lote" value={description} onChangeText={setDescription} multiline placeholder="Contexto clínico, ampliação, coloração (ex.: 40x DAB)..." />
+        <TextField
+          label="Descrição"
+          optional="opcional"
+          value={description}
+          onChangeText={setDescription}
+          multiline
+          placeholder="Contexto clínico, ampliação, coloração (ex.: 40x DAB)"
+        />
       </Dialog>
 
       <Dialog
         visible={uploadOpen}
         onClose={() => setUploadOpen(false)}
-        title="Upload em lote de imagens"
-        subtitle={`JPG, PNG ou TIFF de até ${env.uploadMaxMb} MB cada`}
-        icon={UploadCloud}
-        maxWidth={560}
+        title="Upload de imagens"
+        subtitle={`JPG, PNG ou TIFF de até ${env.uploadMaxMb} MB cada.`}
+        maxWidth={580}
         footer={
           <>
-            <Button label="Fechar" variant="outline" onPress={() => setUploadOpen(false)} />
-            <Button label={progress ? 'Processando...' : `Higienizar e enviar ${picked.length || ''}`.trim()} icon={UploadCloud} loading={!!progress} disabled={!picked.length || !batchId} onPress={upload} />
+            <Button label="Fechar" variant="neutral" onPress={() => setUploadOpen(false)} />
+            <Button
+              label={progress ? 'Enviando...' : 'Enviar imagens'}
+              loading={!!progress}
+              disabled={!picked.length || !batchId}
+              onPress={upload}
+            />
           </>
         }
       >
-        <Callout tone="warning" icon={AlertTriangle} title="Aviso obrigatório: metadados de texto (EXIF/TIFF)">
-          Antes do envio, o app remove do arquivo os metadados de texto (EXIF, XMP, IPTC, comentários e tags de texto do TIFF), que podem conter nome do paciente, prontuário ou datas. Os pixels da imagem não são alterados.
-        </Callout>
         <Select
           label="Lote de destino"
           value={batchId}
           onChange={setTargetBatch}
           options={batches.map((b) => ({ value: b.id, label: b.name, description: `N = ${b.evaluatorsPerImage}` }))}
         />
-        <Pressable onPress={choose} className="items-center gap-1 rounded-xs border-2 border-dashed border-line p-6 web:hover:bg-surface-alt" accessibilityRole="button">
-          <FileImage size={40} color={colors.primary} />
-          <Text className="font-sans-semibold text-xs text-primary">{picked.length ? `${picked.length} arquivo(s) selecionado(s) · trocar seleção` : 'Toque para selecionar arquivos JPG, PNG ou TIFF'}</Text>
-          <Text className="font-sans text-[11px] text-ink-subtle">Seletor de arquivos do sistema, sem pedir permissão</Text>
+
+        <Pressable
+          onPress={choose}
+          accessibilityRole="button"
+          accessibilityLabel="Selecionar arquivos de imagem"
+          className="items-center gap-3.5 rounded-[12px] border border-dashed border-line-input bg-surface-subtle px-6 py-9 web:hover:bg-surface-alt/60"
+        >
+          <Upload size={28} color={colors.primary} />
+          <Text className="text-center font-sans-semibold text-[15px] text-ink">
+            {picked.length ? `${picked.length} arquivo(s) selecionado(s)` : 'Arraste as imagens aqui'}
+          </Text>
+          <View className="min-h-[44px] items-center justify-center rounded-[10px] border border-primary bg-white px-5">
+            <Text className="font-sans-bold text-[14px] text-primary">Selecionar arquivos</Text>
+          </View>
+          <Text className="text-center font-sans text-[12px] text-ink-muted">
+            Metadados de texto (EXIF, XMP, IPTC e TIFF) são removidos automaticamente antes do envio.
+          </Text>
         </Pressable>
 
-        {progress ? <Text className="font-mono text-[11px] text-ink-subtle">{progress}</Text> : null}
+        {progress ? <Text className="font-sans text-[13px] text-ink-muted">{progress}</Text> : null}
 
         {withMetadata.length ? (
-          <Callout tone="warning" icon={AlertTriangle} title={`${withMetadata.length} arquivo(s) com metadados de texto (serão removidos):`}>
+          <Callout tone="warning" icon={AlertTriangle} title={`${withMetadata.length} arquivo(s) com metadados de texto (serão higienizados)`}>
             <View className="gap-1">
               {withMetadata.map((r) => (
-                <Text key={r.name} className="font-mono text-[10px] text-amber-900">
+                <Text key={r.name} className="font-sans text-[12px] text-amber-900">
                   • {r.name}: {r.findings.map((f) => (f.preview ? `${f.kind} (“${f.preview}”)` : f.kind)).join(', ')}
                 </Text>
               ))}
             </View>
           </Callout>
         ) : null}
-        {reports.filter((r) => r.error).map((r) => (
-          <Text key={r.name} className="font-mono text-[10px] text-rose-800">• {r.name}: {r.error}</Text>
-        ))}
+
+        {reports
+          .filter((r) => r.error)
+          .map((r) => (
+            <Text key={r.name} className="font-sans text-[12px] text-danger">
+              • {r.name}: {r.error}
+            </Text>
+          ))}
 
         {summary ? (
-          <View className="gap-2 rounded-xs border border-line bg-surface-alt p-3">
-            <View className="flex-row items-center gap-1.5">
-              <CheckCircle2 size={16} color="#047857" />
-              <Text className="font-sans-bold text-xs text-primary">Resumo do processamento</Text>
+          <View className="gap-3 rounded-[12px] border border-line bg-surface-subtle p-4">
+            <View className="flex-row items-center gap-2">
+              <CheckCircle2 size={16} color={colors.primary} />
+              <Text className="font-sans-bold text-[14px] text-ink">Resumo do upload</Text>
             </View>
-            <View className="flex-row gap-2">
-              <SummaryBox value={summary.uploaded.length} label="Enviadas" tone="success" />
-              <SummaryBox value={summary.duplicates.length} label="Duplicadas" tone="warning" />
-              <SummaryBox value={summary.rejected.length} label="Recusadas" tone="danger" />
+            <View className="flex-row gap-2.5">
+              <SummaryBox value={summary.uploaded.length} label="Enviadas" />
+              <SummaryBox value={summary.duplicates.length} label="Duplicadas" />
+              <SummaryBox value={summary.rejected.length} label="Recusadas" />
             </View>
-            {summary.sanitized ? <Text className="font-mono text-[10px] text-ink-muted">{summary.sanitized} arquivo(s) tiveram metadados removidos.</Text> : null}
-            {summary.uploaded.length ? <Text className="font-mono text-[10px] text-emerald-800">Códigos gerados: {summary.uploaded.join(', ')}</Text> : null}
-            {summary.duplicates.length ? <Text className="font-mono text-[10px] text-amber-800">Mesmo SHA-256 já cadastrado: {summary.duplicates.join(', ')}</Text> : null}
+            {summary.sanitized ? (
+              <Text className="font-sans text-[12px] text-ink-muted">{summary.sanitized} arquivo(s) tiveram metadados removidos.</Text>
+            ) : null}
+            {summary.uploaded.length ? (
+              <Text className="font-sans text-[12px] text-ink">Códigos gerados: {summary.uploaded.join(', ')}</Text>
+            ) : null}
+            {summary.duplicates.length ? (
+              <Text className="font-sans text-[12px] text-amber-800">SHA-256 já cadastrado: {summary.duplicates.join(', ')}</Text>
+            ) : null}
             {summary.rejected.length ? (
               <View className="gap-1 border-t border-line pt-2">
-                <Text className="font-sans-semibold text-[10px] text-rose-900">Motivos de recusa:</Text>
+                <Text className="font-sans-semibold text-[12px] text-danger">Motivos de recusa:</Text>
                 {summary.rejected.map((r, i) => (
-                  <Text key={i} className="font-mono text-[10px] text-rose-800">• {r.filename}: {r.reason}</Text>
+                  <Text key={i} className="font-sans text-[12px] text-danger">
+                    • {r.filename}: {r.reason}
+                  </Text>
                 ))}
               </View>
             ) : null}
@@ -233,13 +299,11 @@ export default function BatchesAndImagesScreen() {
   );
 }
 
-function SummaryBox({ value, label, tone }: { value: number; label: string; tone: 'success' | 'warning' | 'danger' }) {
-  const style = { success: 'border-emerald-200 bg-emerald-50 text-emerald-800', warning: 'border-amber-200 bg-amber-50 text-amber-800', danger: 'border-rose-200 bg-rose-50 text-rose-800' }[tone];
-  const [border, bg, fg] = style.split(' ');
+function SummaryBox({ value, label }: { value: number; label: string }) {
   return (
-    <View className={`flex-1 items-center rounded-xs border p-1.5 ${border} ${bg}`}>
-      <Text className={`font-mono-bold text-sm ${fg}`}>{value}</Text>
-      <Text className={`font-mono text-[11px] ${fg}`}>{label}</Text>
+    <View className="flex-1 items-center rounded-[10px] border border-line bg-white py-2.5">
+      <Text className="font-sans-black text-[18px] text-ink">{value}</Text>
+      <Text className="font-sans text-[12px] text-ink-muted">{label}</Text>
     </View>
   );
 }

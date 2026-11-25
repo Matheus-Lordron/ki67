@@ -19,40 +19,48 @@ interface DialogProps {
   maxWidth?: number;
 }
 
-const toneStyle = {
-  warning: { bg: 'bg-amber-100', color: '#b45309' },
-  success: { bg: 'bg-emerald-100', color: '#047857' },
-  primary: { bg: 'bg-surface-alt', color: colors.primary },
-};
-
-export function Dialog({ visible, onClose, title, subtitle, icon: Icon, iconTone = 'primary', children, footer, variant = 'center', maxWidth = 480 }: DialogProps) {
+export function Dialog({
+  visible,
+  onClose,
+  title,
+  subtitle,
+  children,
+  footer,
+  variant = 'center',
+  maxWidth = 580,
+}: DialogProps) {
   const sheet = variant === 'sheet';
   return (
     <Modal visible={visible} transparent animationType={sheet ? 'slide' : 'fade'} onRequestClose={onClose}>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} className={`flex-1 bg-black/60 ${sheet ? 'justify-end' : 'items-center justify-center p-4'}`}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        className={`flex-1 bg-black/45 ${sheet ? 'justify-end' : 'items-center justify-center p-4'}`}
+      >
         <Pressable className="absolute inset-0" onPress={onClose} accessibilityLabel="Fechar" />
         <View
-          style={{ maxWidth: sheet ? undefined : maxWidth, maxHeight: '88%' }}
-          className={`w-full border border-line bg-white shadow-xl ${sheet ? 'rounded-t-lg' : 'rounded-xs'}`}
+          style={{ maxWidth: sheet ? undefined : maxWidth, maxHeight: '90%' }}
+          className={`w-full bg-white shadow-2xl ${sheet ? 'rounded-t-[20px]' : 'rounded-[16px]'}`}
         >
-          <View className="flex-row items-center gap-3 border-b border-surface-alt px-5 pb-3 pt-5">
-            {Icon ? (
-              <View className={`h-10 w-10 items-center justify-center rounded-full ${toneStyle[iconTone].bg}`}>
-                <Icon size={20} color={toneStyle[iconTone].color} />
-              </View>
-            ) : null}
-            <View className="flex-1">
-              <Text className="font-sans-bold text-base text-ink">{title}</Text>
-              {subtitle ? <Text className="font-mono text-xs text-ink-subtle">{subtitle}</Text> : null}
+          <View className="flex-row items-start justify-between gap-4 px-6 pb-2 pt-7 sm:px-9 sm:pt-9">
+            <View className="flex-1 gap-1.5">
+              <Text className="font-sans-black text-[24px] leading-[29px] tracking-[-0.52px] text-ink sm:text-[26px] sm:leading-[30px]">
+                {title}
+              </Text>
+              {subtitle ? <Text className="font-sans text-[14px] leading-[21px] text-ink-muted">{subtitle}</Text> : null}
             </View>
-            <Pressable onPress={onClose} accessibilityRole="button" accessibilityLabel="Fechar" className="h-11 w-11 items-center justify-center rounded-xs web:hover:bg-surface-alt">
-              <X size={20} color={colors.inkSubtle} />
+            <Pressable
+              onPress={onClose}
+              accessibilityRole="button"
+              accessibilityLabel="Fechar"
+              className="-mr-2 -mt-2 h-11 w-11 items-center justify-center rounded-[10px] web:hover:bg-surface-alt"
+            >
+              <X size={18} color={colors.ink} />
             </Pressable>
           </View>
-          <ScrollView contentContainerClassName="gap-4 p-5" keyboardShouldPersistTaps="handled">
+          <ScrollView contentContainerClassName="gap-[18px] px-6 py-5 sm:px-9" keyboardShouldPersistTaps="handled">
             {children}
           </ScrollView>
-          {footer ? <View className="flex-row flex-wrap justify-end gap-2 border-t border-surface-alt px-5 py-3">{footer}</View> : null}
+          {footer ? <View className="flex-row flex-wrap justify-end gap-3 px-6 pb-7 pt-2 sm:px-9 sm:pb-9">{footer}</View> : null}
         </View>
       </KeyboardAvoidingView>
     </Modal>

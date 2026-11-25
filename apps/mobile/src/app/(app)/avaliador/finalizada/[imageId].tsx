@@ -1,18 +1,16 @@
 import { Redirect, router, useLocalSearchParams } from 'expo-router';
-import { ArrowLeft, History, Lock, ShieldCheck } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
-import { Pressable, ScrollView, Text, useWindowDimensions, View } from 'react-native';
+import { ScrollView, Text, useWindowDimensions, View } from 'react-native';
 
 import { Button } from '@/components/ui/Button';
-import { KeyValue } from '@/components/ui/Card';
-import { StratBadge } from '@/features/anotacao/QuantPanel';
+import { Badge, KeyValue } from '@/components/ui/Card';
 import { isDemo } from '@/data/mode';
 import * as repo from '@/data/repo';
+import { StratBadge } from '@/features/anotacao/QuantPanel';
 import { SlideView } from '@/features/anotacao/SlideView';
 import { useImageUrl } from '@/features/anotacao/useImageUrl';
 import { VersionHistoryDialog } from '@/features/anotacao/VersionHistoryDialog';
 import { useAppStore } from '@/state/appStore';
-import { colors } from '@/theme/colors';
 import { calculateKi67Index, countMarks, formatKi67 } from '@/utils/ki67';
 
 // Análise finalizada em modo somente leitura (RF-24).
@@ -29,14 +27,16 @@ export default function FinalizedReadOnlyView() {
     if (imageId) useAppStore.getState().setLastAnnotationImage(imageId);
   }, [imageId]);
 
-  // Modo real: o histórico vem do servidor na primeira vez que a tela abre.
   const analysisId = analysis?.id;
   const needsHistory = !isDemo && !!analysisId && !analysis?.history.length;
   useEffect(() => {
     if (!needsHistory || !analysisId) return;
-    repo.loadHistory(analysisId).then((history) =>
-      useAppStore.setState((s) => ({ analyses: s.analyses.map((a) => (a.id === analysisId ? { ...a, history } : a)) })),
-    ).catch(() => undefined);
+    repo
+      .loadHistory(analysisId)
+      .then((history) =>
+        useAppStore.setState((s) => ({ analyses: s.analyses.map((a) => (a.id === analysisId ? { ...a, history } : a)) })),
+      )
+      .catch(() => undefined);
   }, [needsHistory, analysisId]);
 
   if (!image || !analysis) return <Redirect href="/avaliador" />;
@@ -47,76 +47,91 @@ export default function FinalizedReadOnlyView() {
   const wide = width >= 1024;
 
   const info = (
-    <View className="gap-4">
+    <View className="gap-5">
+      <View className="flex-row items-center justify-between">
+        <Text className="font-sans-black text-[20px] text-ink">{image.code}</Text>
+        <Badge label="Finalizada" tone="primary" dot="solid" />
+      </View>
+
+      <Text className="font-sans text-[13px] text-ink-muted">
+        {image.batchName} · {image.organ}
+      </Text>
+
+      <View className="gap-2 rounded-[12px] border border-line bg-surface-subtle p-4">
+        <View className="flex-row items-center justify-between">
+          <Text className="font-sans-semibold text-[12px] text-ink-muted">Índice Ki-67 final</Text>
+          <StratBadge index={ki67} />
+        </View>
+        <Text className="font-sans-black text-[30px] leading-[34px] text-ink">{formatKi67(ki67)}</Text>
+      </View>
+
       <View>
-        <Text className="font-mono text-[10px] uppercase text-ink-subtle">Identificação da amostra</Text>
-        <Text className="font-mono-bold text-lg text-primary">{image.code}</Text>
-        <Text className="font-sans text-xs text-ink-muted">{image.organ}</Text>
+        <KeyValue label="Reagentes" value={counts.reagents} bordered />
+        <KeyValue label="Não reagentes" value={counts.nonReagents} bordered />
+        <KeyValue label="Total de núcleos" value={counts.total} />
       </View>
-      <View className="gap-1 rounded-xs border border-line bg-surface-alt p-4">
-        <Text className="font-mono text-[10px] uppercase text-ink-subtle">Índice final</Text>
-        <Text className="font-mono-bold text-3xl text-primary">{formatKi67(ki67)}</Text>
-        <StratBadge index={ki67} />
-      </View>
-      <View className="gap-2 rounded-xs border border-surface-alt bg-white p-3">
-        <KeyValue label="● Reagentes (DAB):" value={counts.reagents} valueClassName="text-warn" />
-        <KeyValue label="○ Não reagentes (HEM):" value={counts.nonReagents} valueClassName="text-sky-700" />
-        <View className="border-t border-surface-alt pt-1">
-          <KeyValue label="Total de células:" value={counts.total} />
+
+      <View className="gap-1.5">
+        <Text className="font-sans-semibold text-[13px] text-ink">Observação clínica</Text>
+        <View className="rounded-[10px] border border-line bg-surface-subtle p-3">
+          <Text className="font-sans text-[13px] italic text-ink-muted">
+            “{analysis.observation || 'Sem observações registradas.'}”
+          </Text>
         </View>
       </View>
-      <View>
-        <Text className="mb-1 font-sans-semibold text-[11px] text-ink">Observação clínica registrada:</Text>
-        <Text className="rounded-xs border border-line bg-surface p-2.5 font-sans text-xs italic text-ink-muted">“{analysis.observation || 'Sem observações registradas.'}”</Text>
+
+      <View className="gap-1">
+        <Text className="font-sans text-[12px] text-ink-muted">
+          Enviada em {analysis.finalizedAt ? new Date(analysis.finalizedAt).toLocaleString('pt-BR') : '—'}
+        </Text>
+        <Text numberOfLines={1} className="font-mono text-[11px] text-ink-subtle">
+          SHA-256: {analysis.hashSHA256}
+        </Text>
       </View>
-      <View className="gap-2 border-t border-line pt-4">
-        <Button label="Ver histórico de versões" icon={History} variant="outline" onPress={() => setHistoryOpen(true)} />
-        <Button label="Voltar à fila de imagens" onPress={() => router.replace('/avaliador')} />
+
+      <View className="gap-2.5 border-t border-line-soft pt-4">
+        <Button label="Histórico de versões" variant="outline" className="w-full" onPress={() => setHistoryOpen(true)} />
+        <Button label="Voltar para minha fila" className="w-full" onPress={() => router.replace('/avaliador')} />
       </View>
     </View>
   );
 
   return (
-    <View className="flex-1 bg-surface">
-      <View className="flex-row flex-wrap items-center justify-between gap-2 border-b border-emerald-300 bg-emerald-50 px-6 py-2.5">
-        <View className="flex-shrink flex-row flex-wrap items-center gap-2">
-          <ShieldCheck size={20} color="#047857" />
-          <Text className="font-sans-bold text-sm text-emerald-900">Análise finalizada (somente leitura)</Text>
-          <Text className="font-mono text-xs text-emerald-700">· enviada em {analysis.finalizedAt ? new Date(analysis.finalizedAt).toLocaleString('pt-BR') : '—'}</Text>
+    <View className={`flex-1 bg-surface-canvas ${wide ? 'flex-row' : ''}`}>
+      <View className={`relative items-center justify-center p-4 ${wide ? 'flex-1' : 'h-80'}`}>
+        <View className="relative h-full w-full overflow-hidden rounded-[12px]">
+          <SlideView
+            uri={imageUri ?? image.imageUrl}
+            imageWidth={image.width}
+            imageHeight={image.height}
+            layers={[{ marks: analysis.marks }]}
+            className="flex-1 bg-surface-canvas"
+          />
         </View>
-        <View className="flex-row items-center gap-2">
-          <Text numberOfLines={1} className="max-w-[220px] rounded-xs border border-emerald-300 bg-white px-2 py-0.5 font-mono text-[11px] text-ink">
-            SHA-256: {analysis.hashSHA256}
+        <View className="absolute left-6 top-5 rounded-full bg-black/55 px-3.5 py-1.5">
+          <Text className="font-sans-semibold text-[12px] text-white">
+            Amostra {image.code} · Somente leitura ({analysis.marks.length} marcações)
           </Text>
-          <Pressable onPress={() => router.replace('/avaliador')} className="min-h-11 flex-row items-center gap-1">
-            <ArrowLeft size={16} color={colors.primary} />
-            <Text className="font-sans-semibold text-xs text-primary">Voltar para lista</Text>
-          </Pressable>
         </View>
       </View>
 
-      <View className={`flex-1 ${wide ? 'flex-row' : ''}`}>
-        <View className={`items-center justify-center bg-slate-900 p-4 ${wide ? 'flex-1' : 'h-80'}`}>
-          <View className="relative h-full w-full max-w-4xl overflow-hidden rounded-xs border border-slate-700">
-            <SlideView uri={imageUri ?? image.imageUrl} imageWidth={image.width} imageHeight={image.height} layers={[{ marks: analysis.marks }]} className="flex-1" />
-            <View className="absolute left-3 top-3 flex-row items-center gap-1.5 rounded-xs border border-slate-700 bg-slate-950/80 px-2 py-1">
-              <Lock size={14} color="#34d399" />
-              <Text className="font-mono text-xs text-white">Lâmina bloqueada · {analysis.marks.length} marcações seladas</Text>
-            </View>
-          </View>
-        </View>
-        {wide ? (
-          <ScrollView className="w-80 flex-none border-l border-line bg-white" contentContainerClassName="p-5">
-            {info}
-          </ScrollView>
-        ) : (
-          <ScrollView className="flex-1 bg-white" contentContainerClassName="p-5">
-            {info}
-          </ScrollView>
-        )}
-      </View>
+      {wide ? (
+        <ScrollView className="w-[320px] flex-none border-l border-line bg-white" contentContainerClassName="p-6">
+          {info}
+        </ScrollView>
+      ) : (
+        <ScrollView className="flex-1 bg-white" contentContainerClassName="p-6">
+          {info}
+        </ScrollView>
+      )}
 
-      <VersionHistoryDialog visible={historyOpen} onClose={() => setHistoryOpen(false)} history={analysis.history} canRestore={false} onRestore={async () => false} />
+      <VersionHistoryDialog
+        visible={historyOpen}
+        onClose={() => setHistoryOpen(false)}
+        history={analysis.history}
+        canRestore={false}
+        onRestore={async () => false}
+      />
     </View>
   );
 }

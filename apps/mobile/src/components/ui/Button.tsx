@@ -4,31 +4,36 @@ import { ActivityIndicator, Pressable, Text } from 'react-native';
 
 import { colors } from '@/theme/colors';
 
-type Variant = 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger' | 'soft';
+type Variant = 'primary' | 'secondary' | 'outline' | 'neutral' | 'ghost' | 'danger' | 'soft';
 
 const box: Record<Variant, string> = {
   primary: 'bg-primary web:hover:bg-primary-dark',
-  secondary: 'bg-primary-dark web:hover:bg-primary',
-  outline: 'bg-white border border-line web:hover:bg-surface-alt',
-  ghost: 'web:hover:bg-surface-alt',
-  danger: 'bg-white border border-red-300 web:hover:bg-rose-50',
-  soft: 'bg-hema-soft border border-hema web:hover:bg-sky-200',
+  secondary: 'bg-primary web:hover:bg-primary-dark',
+  outline: 'bg-white border border-primary web:hover:bg-surface-alt',
+  neutral: 'bg-white border border-line-button web:hover:bg-surface-subtle',
+  ghost: 'web:hover:bg-surface-subtle',
+  danger: 'bg-white border border-line-button web:hover:bg-danger-soft',
+  soft: 'bg-surface-alt web:hover:bg-primary-muted/40',
 };
+
 const text: Record<Variant, string> = {
-  primary: 'text-white',
-  secondary: 'text-white',
-  outline: 'text-primary',
-  ghost: 'text-primary',
-  danger: 'text-danger',
-  soft: 'text-sky-700',
+  primary: 'font-sans-bold text-white',
+  secondary: 'font-sans-bold text-white',
+  outline: 'font-sans-bold text-primary',
+  neutral: 'font-sans-semibold text-ink',
+  ghost: 'font-sans-semibold text-ink-muted',
+  danger: 'font-sans-semibold text-danger',
+  soft: 'font-sans-semibold text-primary',
 };
+
 const iconColor: Record<Variant, string> = {
   primary: colors.white,
   secondary: colors.white,
   outline: colors.primary,
-  ghost: colors.primary,
+  neutral: colors.ink,
+  ghost: colors.inkMuted,
   danger: colors.danger,
-  soft: colors.hema,
+  soft: colors.primary,
 };
 
 interface ButtonProps {
@@ -45,9 +50,30 @@ interface ButtonProps {
   children?: ReactNode;
 }
 
-const sizes = { sm: 'min-h-8 px-2.5 py-1', md: 'min-h-10 px-3.5 py-2', lg: 'min-h-11 px-4 py-2.5' };
+const sizes = {
+  sm: 'min-h-9 px-3.5 py-1.5 rounded-[8px]',
+  md: 'min-h-12 px-[22px] py-2.5 rounded-[10px]',
+  lg: 'min-h-[50px] px-6 py-3 rounded-[10px]',
+};
 
-export function Button({ label, onPress, variant = 'primary', icon: Icon, iconRight: IconRight, size = 'md', disabled, loading, className = '', accessibilityLabel }: ButtonProps) {
+const textSizes = {
+  sm: 'text-[13px]',
+  md: 'text-[15px]',
+  lg: 'text-[15px]',
+};
+
+export function Button({
+  label,
+  onPress,
+  variant = 'primary',
+  icon: Icon,
+  iconRight: IconRight,
+  size = 'md',
+  disabled,
+  loading,
+  className = '',
+  accessibilityLabel,
+}: ButtonProps) {
   const inactive = disabled || loading;
   return (
     <Pressable
@@ -56,17 +82,30 @@ export function Button({ label, onPress, variant = 'primary', icon: Icon, iconRi
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel ?? label}
       accessibilityState={{ disabled: inactive }}
-      className={`flex-row items-center justify-center gap-1.5 rounded-xs ${sizes[size]} ${box[variant]} ${inactive ? 'opacity-50' : ''} ${className}`}
+      className={`flex-row items-center justify-center gap-2 ${sizes[size]} ${box[variant]} ${inactive ? 'opacity-50' : ''} ${className}`}
     >
-      {loading ? <ActivityIndicator size="small" color={iconColor[variant]} /> : Icon ? <Icon size={size === 'sm' ? 14 : 16} color={iconColor[variant]} /> : null}
-      <Text className={`font-sans-semibold text-xs ${text[variant]}`}>{label}</Text>
-      {IconRight ? <IconRight size={14} color={iconColor[variant]} /> : null}
+      {loading ? (
+        <ActivityIndicator size="small" color={iconColor[variant]} />
+      ) : Icon ? (
+        <Icon size={size === 'sm' ? 14 : 16} color={iconColor[variant]} />
+      ) : null}
+      <Text className={`${textSizes[size]} ${text[variant]}`}>{label}</Text>
+      {IconRight ? <IconRight size={size === 'sm' ? 14 : 16} color={iconColor[variant]} /> : null}
     </Pressable>
   );
 }
 
 /** Botão só de ícone, com alvo de toque de 44 px (RNF-12). */
-export function IconButton({ icon: Icon, onPress, label, color = colors.inkSubtle, active, disabled, size = 18, className = '' }: {
+export function IconButton({
+  icon: Icon,
+  onPress,
+  label,
+  color = colors.inkMuted,
+  active,
+  disabled,
+  size = 18,
+  className = '',
+}: {
   icon: LucideIcon;
   onPress?: () => void;
   label: string;
@@ -82,7 +121,7 @@ export function IconButton({ icon: Icon, onPress, label, color = colors.inkSubtl
       disabled={disabled}
       accessibilityRole="button"
       accessibilityLabel={label}
-      className={`h-11 w-11 items-center justify-center rounded-xs ${active ? 'bg-primary' : 'web:hover:bg-surface-alt'} ${disabled ? 'opacity-40' : ''} ${className}`}
+      className={`h-11 w-11 items-center justify-center rounded-[10px] ${active ? 'bg-primary' : 'web:hover:bg-surface-alt'} ${disabled ? 'opacity-40' : ''} ${className}`}
     >
       <Icon size={size} color={active ? colors.white : color} />
     </Pressable>

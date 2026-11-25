@@ -45,8 +45,8 @@ export default function RootLayout() {
     <SafeAreaProvider>
       <QueryClientProvider client={queryClient}>
         <StatusBar style="dark" />
-        <View className="flex-1 bg-surface">
-          <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: '#f8f9ff' } }} />
+        <View className="flex-1 bg-white">
+          <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: '#ffffff' } }} />
           <ToastHost />
         </View>
       </QueryClientProvider>

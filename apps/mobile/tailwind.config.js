@@ -8,31 +8,50 @@ module.exports = {
   darkMode: 'class',
   theme: {
     extend: {
-      // Paleta do protótipo do AI Studio. As telas migradas também podem usar os
-      // valores arbitrários originais, como bg-[#00236f].
+      // Tokens do sistema visual Segmenta Studio (Figma segmenta-design).
       colors: {
-        primary: { DEFAULT: '#00236f', dark: '#1e3a8a', soft: '#dce9ff' },
-        surface: { DEFAULT: '#f8f9ff', alt: '#eff4ff' },
-        ink: { DEFAULT: '#0b1c30', muted: '#444651', subtle: '#757682' },
-        line: '#c5c5d3',
+        primary: {
+          DEFAULT: '#0b1f52',
+          dark: '#183786',
+          soft: '#eef1f8',
+          subtle: '#f3f6fd',
+          muted: '#c9d4f5',
+        },
+        surface: {
+          DEFAULT: '#ffffff',
+          alt: '#eef1f8',
+          subtle: '#f8f9fc',
+          canvas: '#0e1a3a',
+        },
+        ink: {
+          DEFAULT: '#0a0a0a',
+          muted: '#5a6272',
+          subtle: '#8a91a1',
+        },
+        line: {
+          DEFAULT: '#e5e7eb',
+          soft: '#eef0f4',
+          card: '#b3bac8',
+          input: '#a9b0bf',
+          button: '#d5d9e2',
+        },
         dab: { DEFAULT: '#8e4d2d', dashed: '#ffb595' }, // núcleo reagente (marrom)
         hema: { DEFAULT: '#0284c7', dashed: '#38bdf8', soft: '#e0f2fe' }, // não reagente (azul)
-        danger: { DEFAULT: '#ba1a1a', soft: '#ffdad6', dark: '#93000a' },
+        danger: { DEFAULT: '#b42318', soft: '#fef3f2', dark: '#912018' },
         warn: { DEFAULT: '#78350f', soft: '#fef3c7' },
       },
-      // Nomes do Tailwind 4 usados no protótipo (rounded-xs, shadow-xs, shadow-2xs).
-      borderRadius: { xs: '2px' },
+      borderRadius: { xs: '8px' },
       boxShadow: {
-        '2xs': '0 1px rgb(0 0 0 / 0.05)',
-        xs: '0 1px 2px 0 rgb(0 0 0 / 0.05)',
+        '2xs': '0 1px 2px rgb(10 10 10 / 0.04)',
+        xs: '0 2px 14px 0 rgb(10 10 10 / 0.07)',
       },
       // No Android e no iOS cada peso é uma família de fonte própria (veja src/theme/fonts.ts).
       fontFamily: {
-        sans: ['Inter_400Regular'],
-        'sans-medium': ['Inter_500Medium'],
-        'sans-semibold': ['Inter_600SemiBold'],
-        'sans-bold': ['Inter_700Bold'],
-        'sans-black': ['Inter_800ExtraBold'],
+        sans: ['Manrope_400Regular'],
+        'sans-medium': ['Manrope_500Medium'],
+        'sans-semibold': ['Manrope_600SemiBold'],
+        'sans-bold': ['Manrope_700Bold'],
+        'sans-black': ['Manrope_800ExtraBold'],
         mono: ['JetBrainsMono_400Regular'],
         'mono-medium': ['JetBrainsMono_500Medium'],
         'mono-bold': ['JetBrainsMono_700Bold'],

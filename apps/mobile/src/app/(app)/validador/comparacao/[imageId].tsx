@@ -1,10 +1,11 @@
 import { Redirect, router, useLocalSearchParams } from 'expo-router';
-import { AlertTriangle, ArrowLeft, CheckCircle2, FileCheck, Flame, Layers, ShieldCheck, ZoomIn, ZoomOut } from 'lucide-react-native';
+import { AlertTriangle, CheckCircle2, ShieldCheck, ZoomIn, ZoomOut } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, Text, useWindowDimensions, View } from 'react-native';
 
+import { BackLink } from '@/components/layout/AuthShell';
 import { Button } from '@/components/ui/Button';
-import { Badge, Card, Callout, KeyValue } from '@/components/ui/Card';
+import { Card, KeyValue } from '@/components/ui/Card';
 import { Dialog } from '@/components/ui/Dialog';
 import { RadioRow, TextField } from '@/components/ui/Field';
 import { Grid } from '@/components/ui/Grid';
@@ -43,12 +44,13 @@ export default function ComparisonScreen() {
 
   if (loading) {
     return (
-      <View className="flex-1 items-center justify-center gap-2">
+      <View className="flex-1 items-center justify-center gap-2 bg-white">
         <ActivityIndicator color={colors.primary} />
-        <Text className="font-mono text-xs text-ink-subtle">Carregando a comparação cega...</Text>
+        <Text className="font-sans text-[14px] text-ink-muted">Carregando comparação cega...</Text>
       </View>
     );
   }
+
   // RN-05 e RN-08: sem as N análises, ou se o validador anotou a imagem, a comparação não abre.
   if (denied || !cmp || !user || cmp.image.assignedEvaluatorIds.includes(user.id) || (!cmp.ready && cmp.image.status !== 'validada')) {
     return <Redirect href="/validador" />;
@@ -60,12 +62,13 @@ export default function ComparisonScreen() {
   const result = cmp.result;
   const chosen = blind.find((b) => b.code === choice);
   const chosenKi67 = chosen ? (chosen.ki67 ?? 0) : metrics.median;
+  const desktop = width >= 900;
 
   const confirm = async () => {
     setBusy(true);
     const res = await submitConsensus({
       imageId: image.id,
-      adoptedAnalysisCode: chosen ? `Análise ${chosen.code} adotada` : 'Consenso mediano',
+      adoptedAnalysisCode: chosen ? `Análise ${chosen.code} adotada` : 'Consenso',
       adoptedBlindCode: chosen?.code,
       justification,
       consensusKi67: chosenKi67,
@@ -78,7 +81,7 @@ export default function ComparisonScreen() {
     setBusy(false);
     setConfirmOpen(false);
     if (res.ok) {
-      showToast('Resultado validado, selado e tornado imutável.');
+      showToast('Resultado congelado: Validação selada com SHA-256.');
       router.replace('/validador');
     } else {
       showToast(res.error);
@@ -87,275 +90,360 @@ export default function ComparisonScreen() {
 
   const openConfirm = () => {
     if (justification.trim().length < 15) {
-      showToast('O parecer técnico é obrigatório (mínimo de 15 caracteres).');
+      showToast('Parecer técnico obrigatório: informe ao menos 15 caracteres.');
       return;
     }
     setConfirmOpen(true);
   };
 
-  const wide = width >= 1024;
-
   return (
-    <Screen maxWidth={1600}>
-      <View className="flex-row flex-wrap items-center justify-between gap-2">
-        <Pressable onPress={() => router.replace('/validador')} className="min-h-11 flex-row items-center gap-1.5">
-          <ArrowLeft size={16} color={colors.primary} />
-          <Text className="font-sans-semibold text-xs text-primary">Voltar para a fila de validação</Text>
-        </Pressable>
-        <Text className="font-mono text-xs text-ink-subtle">Lâmina: {image.code} · Amostragem {blind.length}x cega</Text>
+    <Screen maxWidth={1160}>
+      <View className="gap-4">
+        <BackLink label="Voltar para a fila" onPress={() => router.replace('/validador')} />
+        <View className="gap-2">
+          <Text accessibilityRole="header" className="font-sans-black text-[34px] leading-[40px] tracking-[-1.2px] text-ink sm:text-[40px] sm:leading-[44px]">
+            {image.code}
+          </Text>
+          <Text className="font-sans text-[15px] text-ink-muted">
+            {image.batchName} · {image.organ} · {blind.length} análises independentes anonimizadas
+          </Text>
+        </View>
       </View>
 
-      <Card className="flex-row flex-wrap items-center justify-between gap-4 p-4 lg:p-5">
-        <View className="shrink gap-1">
-          <View className="flex-row flex-wrap items-center gap-2">
-            <Text className="font-sans-bold text-xl text-primary">Comparação cega · Ki-67 nuclear</Text>
-            <Badge label={`Meta N=${image.requiredEvaluatorsCount} atingida`} />
-          </View>
-          <Text className="font-sans text-xs text-ink-muted">{image.batchName} — {image.organ}. Nomes dos avaliadores omitidos (protocolo cego).</Text>
-        </View>
-        <View className="flex-row flex-wrap gap-6">
-          <Metric label="Divergência máxima" value={`Δ ${metrics.deltaPP} p.p.`} tag={metrics.deltaPP < DELTA_LIMIT ? 'Dentro do limite' : 'Acima do limite'} ok={metrics.deltaPP < DELTA_LIMIT} />
-          <Metric label="Concordância espacial" value={`${spatialAgreementPct}%`} tag="tolerância 3,5%" ok={spatialAgreementPct >= 80} />
-          <Metric label="ICC estimado" value={metrics.iccEstimate.toFixed(2)} tag={iccLabel(metrics.iccEstimate)} ok={metrics.iccEstimate >= 0.75} />
-        </View>
-      </Card>
+      {/* Faixa de concordância (Section - Concordância no Figma) */}
+      <View className={`rounded-[14px] border border-line-card bg-white py-6 ${desktop ? 'flex-row items-stretch' : 'gap-5'}`}>
+        <ConcordanceCell
+          label="Divergência máxima"
+          value={`Δ ${String(metrics.deltaPP).replace('.', ',')} p.p.`}
+          note={metrics.deltaPP < DELTA_LIMIT ? 'Dentro do limite' : 'Acima do limite'}
+          first
+          desktop={desktop}
+        />
+        <ConcordanceCell
+          label="Concordância espacial"
+          value={`${spatialAgreementPct}%`}
+          note="Tolerância de 3,5%"
+          desktop={desktop}
+        />
+        <ConcordanceCell
+          label="ICC estimado"
+          value={metrics.iccEstimate.toFixed(2).replace('.', ',')}
+          note={iccLabel(metrics.iccEstimate)}
+          desktop={desktop}
+        />
+      </View>
 
-      <View className="gap-2">
-        <View className="flex-row flex-wrap items-center justify-between gap-2">
-          <View className="flex-row items-center gap-2">
-            <Layers size={16} color={colors.primary} />
-            <Text className="font-sans-bold text-sm text-ink">Análises anonimizadas (sessões fechadas)</Text>
-          </View>
-          <Text className="font-mono text-xs text-ink-subtle">Cada análise selada com SHA-256</Text>
-        </View>
-        <Grid cols={{ base: 1, md: Math.min(3, blind.length), lg: Math.min(4, blind.length) }}>
+      {/* Seção 1: Análises anonimizadas */}
+      <View className="gap-6">
+        <StepHeading step="1" title="Análises anonimizadas" />
+        <View className="gap-4">
           {blind.map((an) => (
-            <Card key={an.code} className="h-full gap-2 p-4">
-              <View className="flex-row items-center justify-between border-b border-surface-alt pb-2">
-                <View className="flex-row items-center gap-2">
-                  <View style={{ backgroundColor: an.color }} className="h-6 w-6 items-center justify-center rounded-xs">
-                    <Text className="font-mono-bold text-xs text-white">{an.code}</Text>
+            <Card key={an.code} className="flex-col gap-5 p-6 md:flex-row md:items-center">
+              <View className="h-[120px] w-full overflow-hidden rounded-[12px] bg-surface-canvas md:w-[160px]">
+                <SlideView
+                  uri={image.imageUrl}
+                  imageWidth={image.width}
+                  imageHeight={image.height}
+                  layers={[{ marks: an.marks, tint: an.color }]}
+                  className="flex-1 bg-surface-canvas"
+                  pointRadius={4}
+                />
+              </View>
+
+              <View className="flex-1 gap-4">
+                <View className="flex-row flex-wrap items-baseline justify-between gap-2">
+                  <View className="flex-row items-center gap-2">
+                    <View style={{ backgroundColor: an.color }} className="h-2.5 w-2.5 rounded-full" />
+                    <Text className="font-sans-black text-[20px] text-ink">Análise {an.code}</Text>
                   </View>
-                  <Text className="font-sans-bold text-xs text-ink">Análise {an.code} (anonimizada)</Text>
+                  <Text className="font-sans text-[13px] text-ink-muted">
+                    Versão {an.version} final ·{' '}
+                    {an.finalizedAt
+                      ? `${new Date(an.finalizedAt).toLocaleDateString('pt-BR')}, ${new Date(an.finalizedAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`
+                      : '—'}
+                  </Text>
                 </View>
-                <Text className="rounded-xs bg-surface-alt px-1.5 py-0.5 font-mono text-[11px] text-primary">v{an.version} final</Text>
-              </View>
-              <View className="flex-row items-baseline justify-between">
-                <Text className="font-sans text-xs text-ink-subtle">Índice Ki-67:</Text>
-                <Text className="font-mono-bold text-2xl text-primary">{formatKi67(an.ki67)}</Text>
-              </View>
-              <View className="flex-row gap-2">
-                <View className="flex-1 flex-row items-center justify-between rounded-xs border border-amber-200 bg-warn-soft p-2">
-                  <Text className="font-sans-semibold text-[11px] text-warn">● Reagentes</Text>
-                  <Text className="font-mono-bold text-xs text-warn">{an.reagents}</Text>
+
+                <View className="flex-row flex-wrap gap-6">
+                  <StatBlock label="Ki-67" value={formatKi67(an.ki67)} highlight />
+                  <StatBlock label="Reagentes" value={an.reagents} />
+                  <StatBlock label="Não reagentes" value={an.nonReagents} />
+                  <StatBlock label="Núcleos marcados" value={an.total} />
                 </View>
-                <View className="flex-1 flex-row items-center justify-between rounded-xs border border-sky-200 bg-hema-soft p-2">
-                  <Text className="font-sans-semibold text-[11px] text-sky-700">○ Não reag.</Text>
-                  <Text className="font-mono-bold text-xs text-sky-700">{an.nonReagents}</Text>
-                </View>
-              </View>
-              <View className="relative h-28 overflow-hidden rounded-xs border border-line">
-                <SlideView uri={image.imageUrl} imageWidth={image.width} imageHeight={image.height} layers={[{ marks: an.marks }]} className="flex-1" pointRadius={4} />
-                <View className="absolute bottom-1 right-1 rounded-xs bg-black/75 px-1.5 py-0.5">
-                  <Text className="font-mono text-[10px] text-white">{an.total} núcleos marcados</Text>
-                </View>
-              </View>
-              {an.observation ? <Text numberOfLines={2} className="font-sans text-[11px] italic text-ink-subtle">“{an.observation}”</Text> : null}
-              <View className="flex-row justify-between border-t border-surface-alt pt-2">
-                <Text className="font-mono text-[10px] text-ink-subtle">{an.finalizedAt ? new Date(an.finalizedAt).toLocaleString('pt-BR') : '—'}</Text>
-                <Text numberOfLines={1} className="max-w-[140px] font-mono text-[10px] text-ink-subtle">HASH: {an.hash}</Text>
+
+                {an.observation ? (
+                  <Text numberOfLines={2} className="font-sans text-[13px] italic text-ink-muted">
+                    “{an.observation}”
+                  </Text>
+                ) : null}
               </View>
             </Card>
           ))}
-        </Grid>
+        </View>
       </View>
 
-      <View className={`gap-5 ${wide ? 'flex-row items-start' : ''}`}>
-        <Card className={`gap-3 p-4 ${wide ? 'flex-[7]' : ''}`}>
-          <View className="flex-row flex-wrap items-center justify-between gap-2 border-b border-line pb-2.5">
-            <View className="flex-row items-center gap-2">
-              <Layers size={16} color={colors.primary} />
-              <Text className="font-sans-bold text-sm text-ink">Sobreposição e mapa de calor</Text>
-            </View>
-            <Pressable onPress={() => setSideBySide((v) => !v)} className="min-h-9 justify-center rounded-xs border border-line bg-surface-alt px-2">
-              <Text className="font-mono-bold text-xs text-primary">Modo: {sideBySide ? 'Lado a lado' : 'Sobreposição'}</Text>
-            </Pressable>
-          </View>
+      {/* Seção 2: Sobreposição e mapa de calor */}
+      <View className="gap-6">
+        <StepHeading step="2" title="Sobreposição e mapa de calor" />
+        <View className="flex-row flex-wrap items-center justify-between gap-3">
           <View className="flex-row flex-wrap items-center gap-2">
-            <Text className="font-sans text-xs text-ink-subtle">Camadas:</Text>
-            {blind.map((b) => (
-              <Pressable
-                key={b.code}
-                onPress={() => setLayers((l) => ({ ...l, [b.code]: !visible(b.code) }))}
-                accessibilityRole="checkbox"
-                accessibilityState={{ checked: visible(b.code) }}
-                style={visible(b.code) ? { borderColor: b.color } : undefined}
-                className={`min-h-9 flex-row items-center gap-1.5 rounded-xs border px-2 ${visible(b.code) ? 'bg-surface-alt' : 'border-line bg-white'}`}
-              >
-                <View style={{ backgroundColor: b.color }} className="h-2 w-2 rounded-full" />
-                <Text style={{ color: visible(b.code) ? b.color : colors.inkSubtle }} className="font-mono-bold text-xs">[Anotações {b.code}]</Text>
-              </Pressable>
-            ))}
-            <Pressable onPress={() => setHeatmap((v) => !v)} className={`min-h-9 flex-row items-center gap-1.5 rounded-xs border px-2.5 ${heatmap ? 'border-amber-300 bg-amber-100' : 'border-line bg-white'}`}>
-              <Flame size={14} color="#d97706" />
-              <Text className={`text-xs ${heatmap ? 'font-sans-bold text-amber-900' : 'font-sans-semibold text-ink-muted'}`}>[Mapa de calor de divergência]</Text>
+            {blind.map((b) => {
+              const on = visible(b.code);
+              return (
+                <Pressable
+                  key={b.code}
+                  onPress={() => setLayers((l) => ({ ...l, [b.code]: !on }))}
+                  accessibilityRole="checkbox"
+                  accessibilityState={{ checked: on }}
+                  className={`h-10 flex-row items-center gap-2 rounded-[8px] border px-4 ${
+                    on ? 'border-primary bg-surface-alt' : 'border-line-button bg-white'
+                  }`}
+                >
+                  <View style={{ backgroundColor: b.color }} className="h-2 w-2 rounded-full" />
+                  <Text className={`font-sans-semibold text-[13px] ${on ? 'text-primary' : 'text-ink-muted'}`}>
+                    Anotações {b.code}
+                  </Text>
+                </Pressable>
+              );
+            })}
+            <Pressable
+              onPress={() => setHeatmap((v) => !v)}
+              className={`h-10 flex-row items-center justify-center rounded-[8px] border px-4 ${
+                heatmap ? 'border-primary bg-primary' : 'border-line-button bg-white'
+              }`}
+            >
+              <Text className={`font-sans-semibold text-[13px] ${heatmap ? 'text-white' : 'text-ink'}`}>
+                Mapa de divergência
+              </Text>
+            </Pressable>
+            <Pressable
+              onPress={() => setSideBySide((v) => !v)}
+              className={`h-10 flex-row items-center justify-center rounded-[8px] border px-4 ${
+                sideBySide ? 'border-primary bg-surface-alt' : 'border-line-button bg-white'
+              }`}
+            >
+              <Text className={`font-sans-semibold text-[13px] ${sideBySide ? 'text-primary' : 'text-ink-muted'}`}>
+                {sideBySide ? 'Modo sobreposição' : 'Lado a lado'}
+              </Text>
             </Pressable>
           </View>
 
-          {sideBySide ? (
-            <Grid cols={{ base: 1, md: Math.min(3, blind.length) }} gap={8}>
-              {blind.filter((b) => visible(b.code)).map((b) => (
-                <View key={b.code} className="h-64 overflow-hidden rounded-xs border border-line">
-                  <SlideView uri={image.imageUrl} imageWidth={image.width} imageHeight={image.height} layers={[{ marks: b.marks, tint: b.color }]} zoom={zoom} className="flex-1" pointRadius={5} />
-                  <View style={{ backgroundColor: b.color }} className="absolute left-2 top-2 rounded-xs px-1.5 py-0.5">
-                    <Text className="font-mono-bold text-[10px] text-white">{b.code}</Text>
+          <Text className="font-sans-semibold text-[14px] text-ink-muted">
+            {spatialAgreementPct}% de coincidência espacial
+          </Text>
+        </View>
+
+        {sideBySide ? (
+          <Grid cols={{ base: 1, md: Math.min(3, blind.length) }} gap={12}>
+            {blind
+              .filter((b) => visible(b.code))
+              .map((b) => (
+                <View key={b.code} className="h-[320px] overflow-hidden rounded-[16px] bg-surface-canvas">
+                  <SlideView
+                    uri={image.imageUrl}
+                    imageWidth={image.width}
+                    imageHeight={image.height}
+                    layers={[{ marks: b.marks, tint: b.color }]}
+                    zoom={zoom}
+                    className="flex-1 bg-surface-canvas"
+                    pointRadius={5}
+                  />
+                  <View style={{ backgroundColor: b.color }} className="absolute left-3 top-3 rounded-[8px] px-2.5 py-1">
+                    <Text className="font-sans-bold text-[12px] text-white">Análise {b.code}</Text>
                   </View>
                 </View>
               ))}
-            </Grid>
-          ) : (
-            <View className="relative h-[360px] overflow-hidden rounded-xs border border-line">
-              <SlideView
-                uri={image.imageUrl}
-                imageWidth={image.width}
-                imageHeight={image.height}
-                zoom={zoom}
-                heat={heatmap ? heat : undefined}
-                layers={blind.filter((b) => visible(b.code)).map((b) => ({ marks: b.marks, tint: b.color }))}
-                className="flex-1"
-                pointRadius={5}
-              />
-              <View className="absolute left-2 top-2 flex-row items-center gap-1 rounded-xs border border-line bg-white/90 p-1">
-                <Pressable onPress={() => setZoom((z) => Math.min(z + 0.25, 3))} accessibilityLabel="Aumentar zoom" className="h-9 w-9 items-center justify-center">
-                  <ZoomIn size={16} color={colors.ink} />
-                </Pressable>
-                <Pressable onPress={() => setZoom((z) => Math.max(z - 0.25, 0.75))} accessibilityLabel="Diminuir zoom" className="h-9 w-9 items-center justify-center">
-                  <ZoomOut size={16} color={colors.ink} />
-                </Pressable>
-                <Pressable onPress={() => setZoom(1)} className="h-9 justify-center px-1.5">
-                  <Text className="font-mono-bold text-xs text-primary">1x</Text>
-                </Pressable>
-              </View>
-              <View className="absolute right-2 top-2 flex-row items-center gap-1.5 rounded-xs border border-line bg-white/95 px-2.5 py-1">
-                <View className="h-2 w-2 rounded-full bg-emerald-600" />
-                <Text className="font-mono-bold text-xs text-ink">{spatialAgreementPct}% coincidência espacial</Text>
-              </View>
-              {heatmap ? (
-                <View className="absolute bottom-2 left-2 rounded-xs bg-amber-200/90 px-1.5 py-0.5">
-                  <Text className="font-mono text-[10px] text-amber-950">{heat.length} região(ões) de divergência</Text>
-                </View>
-              ) : null}
+          </Grid>
+        ) : (
+          <View className="relative h-[460px] overflow-hidden rounded-[16px] bg-surface-canvas">
+            <SlideView
+              uri={image.imageUrl}
+              imageWidth={image.width}
+              imageHeight={image.height}
+              zoom={zoom}
+              heat={heatmap ? heat : undefined}
+              layers={blind.filter((b) => visible(b.code)).map((b) => ({ marks: b.marks, tint: b.color }))}
+              className="flex-1 bg-surface-canvas"
+              pointRadius={5}
+            />
+            <View className="absolute left-4 top-4 flex-row items-center gap-1 rounded-[10px] border border-line bg-white/95 p-1 shadow-sm">
+              <Pressable onPress={() => setZoom((z) => Math.min(z + 0.25, 3))} accessibilityLabel="Aumentar zoom" className="h-9 w-9 items-center justify-center rounded-[8px]">
+                <ZoomIn size={16} color={colors.ink} />
+              </Pressable>
+              <Pressable onPress={() => setZoom((z) => Math.max(z - 0.25, 0.75))} accessibilityLabel="Diminuir zoom" className="h-9 w-9 items-center justify-center rounded-[8px]">
+                <ZoomOut size={16} color={colors.ink} />
+              </Pressable>
+              <Pressable onPress={() => setZoom(1)} className="h-9 justify-center px-2">
+                <Text className="font-sans-bold text-[12px] text-primary">1x</Text>
+              </Pressable>
             </View>
-          )}
-          <View className="flex-row flex-wrap items-center justify-between gap-2 border-t border-line pt-2">
-            <View className="flex-row gap-3">
-              <Text className="font-sans text-xs text-ink-subtle">● DAB reagente</Text>
-              <Text className="font-sans text-xs text-ink-subtle">○ HEM não reagente</Text>
-            </View>
-            <Text className="font-mono text-[11px] text-ink-subtle">Contorno colorido = análise (A, B, C...)</Text>
+            {heatmap ? (
+              <View className="absolute bottom-4 left-4 rounded-[8px] bg-amber-100 px-3 py-1.5">
+                <Text className="font-sans-semibold text-[12px] text-amber-950">{heat.length} região(ões) de divergência</Text>
+              </View>
+            ) : null}
           </View>
-        </Card>
+        )}
+      </View>
 
-        <Card className={`gap-3 p-4 ${wide ? 'flex-[5]' : ''}`}>
-          <View className="flex-row items-center justify-between border-b border-line pb-2.5">
-            <View className="flex-row items-center gap-2">
-              <FileCheck size={16} color={colors.primary} />
-              <Text className="font-sans-bold text-sm text-ink">Fechamento do resultado validado</Text>
+      {/* Seção 3: Resultado validado */}
+      <View className="gap-6">
+        <StepHeading step="3" title="Resultado validado" />
+        {result ? (
+          <Card className="gap-6 p-7">
+            <View className="flex-row items-center gap-3.5">
+              <CheckCircle2 size={24} color={colors.primary} />
+              <View className="flex-1 gap-0.5">
+                <Text className="font-sans-black text-[18px] text-ink">Resultado congelado</Text>
+                <Text className="font-sans text-[13px] text-ink-muted">
+                  Registrado por {result.validatorName} em {new Date(result.frozenAt).toLocaleString('pt-BR')}
+                </Text>
+              </View>
             </View>
-            <Badge label="Papel: Validador" />
-          </View>
 
-          {result ? (
-            <View className="gap-3">
-              <Callout tone="success" icon={ShieldCheck} title="Resultado congelado e imutável">
-                {`Registrado por ${result.validatorName} em ${new Date(result.frozenAt).toLocaleString('pt-BR')}.`}
-              </Callout>
-              <View className="gap-1 rounded-xs border border-line bg-surface-alt p-3">
-                <KeyValue label="Decisão:" value={result.adoptedAnalysisCode ?? '—'} valueClassName="text-primary" />
-                <KeyValue label="Ki-67 validado:" value={formatKi67(result.consensusKi67)} valueClassName="text-primary" />
-                <KeyValue label="ICC / Δ / coincidência:" value={`${result.iccScore} / ${result.divergenceDeltaPP} p.p. / ${result.spatialAgreementPct}%`} />
-              </View>
-              <Text className="font-sans text-xs italic text-ink-muted">“{result.justification}”</Text>
-              <Text numberOfLines={1} className="font-mono text-[10px] text-ink-subtle">SHA-256: {result.hashSHA256}</Text>
+            <View className="flex-row flex-wrap gap-8 border-t border-line pt-6">
+              <StatBlock label="Decisão" value={result.adoptedAnalysisCode ?? 'Consenso'} />
+              <StatBlock label="Ki-67 validado" value={formatKi67(result.consensusKi67)} highlight />
+              <StatBlock label="ICC / Δ" value={`${String(result.iccScore).replace('.', ',')} / ${String(result.divergenceDeltaPP).replace('.', ',')} p.p.`} />
+              <StatBlock label="Coincidência" value={`${result.spatialAgreementPct}%`} />
             </View>
-          ) : (
-            <>
-              <View className="gap-1 rounded-xs border border-line bg-surface-alt p-3">
-                <View className="flex-row items-baseline justify-between">
-                  <Text className="font-mono text-xs text-ink-subtle">Ki-67 mediano:</Text>
-                  <Text className="font-mono-bold text-2xl text-primary">{formatKi67(metrics.median)}</Text>
-                </View>
-                <KeyValue label="Intervalo:" value={`${formatKi67(metrics.min)} – ${formatKi67(metrics.max)} (Δ ${metrics.deltaPP} p.p.)`} />
+
+            {result.justification ? (
+              <Text className="font-sans text-[14px] italic text-ink-muted">“{result.justification}”</Text>
+            ) : null}
+            <Text numberOfLines={1} className="font-mono text-[11px] text-ink-subtle">
+              SHA-256: {result.hashSHA256}
+            </Text>
+          </Card>
+        ) : (
+          <Card className="gap-5 p-7">
+            <View className="flex-row flex-wrap items-baseline justify-between gap-2 rounded-[12px] bg-surface-subtle p-4">
+              <View className="gap-0.5">
+                <Text className="font-sans-semibold text-[13px] text-ink-muted">Ki-67 mediano sugerido</Text>
+                <Text className="font-sans text-[13px] text-ink-muted">
+                  Intervalo {formatKi67(metrics.min)} – {formatKi67(metrics.max)} (Δ {metrics.deltaPP} p.p.)
+                </Text>
               </View>
-              <View className="gap-1.5">
-                <Text className="font-sans-semibold text-xs text-ink">Escolha a decisão:</Text>
-                <RadioRow selected={choice === 'consenso'} onPress={() => setChoice('consenso')} label="Consenso (mediana das análises)" value={formatKi67(metrics.median)} />
-                {blind.map((b) => (
-                  <RadioRow key={b.code} selected={choice === b.code} onPress={() => setChoice(b.code)} label={`Adotar a análise ${b.code}`} value={formatKi67(b.ki67)} />
-                ))}
-              </View>
-              <TextField
-                label="Parecer técnico do validador (obrigatório)"
-                multiline
-                value={justification}
-                onChangeText={setJustification}
-                placeholder="Justificativa sobre concordância, hotspot e critérios de exclusão..."
+              <Text className="font-sans-black text-[28px] text-primary">{formatKi67(metrics.median)}</Text>
+            </View>
+
+            <View className="gap-2">
+              <Text className="font-sans-semibold text-[13px] text-ink">Decisão de consenso</Text>
+              <RadioRow
+                selected={choice === 'consenso'}
+                onPress={() => setChoice('consenso')}
+                label="Consenso (mediana das análises)"
+                value={formatKi67(metrics.median)}
               />
-              <Text className="-mt-2 font-sans text-[10px] text-ink-subtle">O resultado será selado com hash SHA-256 e não poderá ser alterado.</Text>
-              <View className="gap-1 rounded-xs border border-line bg-surface-alt p-2">
-                <Check ok={blind.length >= image.requiredEvaluatorsCount} text={`Meta de ${image.requiredEvaluatorsCount} análises independentes cumprida`} />
-                <Check ok={metrics.deltaPP < DELTA_LIMIT} text={`Divergência entre avaliadores < ${DELTA_LIMIT} p.p.`} />
-                <Check ok text="Você não anotou esta imagem (RN-08)" />
-              </View>
+              {blind.map((b) => (
+                <RadioRow
+                  key={b.code}
+                  selected={choice === b.code}
+                  onPress={() => setChoice(b.code)}
+                  label={`Adotar a análise ${b.code}`}
+                  value={formatKi67(b.ki67)}
+                />
+              ))}
+            </View>
+
+            <TextField
+              label="Parecer técnico do validador"
+              multiline
+              value={justification}
+              onChangeText={setJustification}
+              placeholder="Justificativa sobre concordância, hotspot e critérios de exclusão..."
+            />
+
+            <View className="gap-1.5 rounded-[12px] bg-surface-subtle p-4">
+              <CheckRow ok={blind.length >= image.requiredEvaluatorsCount} text={`Meta de ${image.requiredEvaluatorsCount} análises independentes cumprida`} />
+              <CheckRow ok={metrics.deltaPP < DELTA_LIMIT} text={`Divergência entre avaliadores < ${DELTA_LIMIT} p.p.`} />
+              <CheckRow ok text="Você não anotou esta imagem (RN-08)" />
+            </View>
+
+            <View className="flex-row justify-end pt-1">
               <Button label="Aprovar e congelar resultado" icon={ShieldCheck} size="lg" onPress={openConfirm} />
-            </>
-          )}
-        </Card>
+            </View>
+          </Card>
+        )}
       </View>
 
       <Dialog
         visible={confirmOpen}
         onClose={() => setConfirmOpen(false)}
         title="Congelar resultado validado?"
-        subtitle={image.code}
-        icon={ShieldCheck}
-        iconTone="success"
+        subtitle={`${image.code} · selo SHA-256 irreversível`}
         footer={
           <>
-            <Button label="Revisar" variant="outline" onPress={() => setConfirmOpen(false)} />
-            <Button label="Confirmar e selar resultado" icon={CheckCircle2} loading={busy} onPress={confirm} />
+            <Button label="Revisar" variant="neutral" onPress={() => setConfirmOpen(false)} />
+            <Button label="Confirmar e congelar" loading={busy} onPress={confirm} />
           </>
         }
       >
-        <Text className="font-sans text-xs leading-5 text-ink-muted">
-          O resultado se tornará <Text className="font-sans-semibold text-ink">definitivo e imutável</Text>, com hash SHA-256 para auditoria.
+        <Text className="font-sans text-[14px] leading-5 text-ink-muted">
+          O resultado se tornará definitivo e imutável no banco de dados e no log de auditoria.
         </Text>
-        <View className="gap-1 rounded-xs border border-line bg-surface-alt p-3">
-          <KeyValue label="Decisão:" value={chosen ? `Análise ${chosen.code}` : 'Consenso (mediana)'} valueClassName="text-primary" />
-          <KeyValue label="Ki-67 selecionado:" value={formatKi67(chosenKi67)} valueClassName="text-primary" />
+        <View className="rounded-[12px] border border-line bg-surface-subtle px-4 py-2">
+          <KeyValue label="Decisão" value={chosen ? `Análise ${chosen.code}` : 'Consenso'} bordered />
+          <KeyValue label="Ki-67 validado" value={formatKi67(chosenKi67)} />
         </View>
       </Dialog>
     </Screen>
   );
 }
 
-function Metric({ label, value, tag, ok }: { label: string; value: string; tag: string; ok: boolean }) {
+function ConcordanceCell({
+  label,
+  value,
+  note,
+  first,
+  desktop,
+}: {
+  label: string;
+  value: string;
+  note: string;
+  first?: boolean;
+  desktop: boolean;
+}) {
   return (
-    <View className="items-end">
-      <Text className="font-mono text-[10px] uppercase text-ink-subtle">{label}</Text>
-      <View className="flex-row items-center gap-1">
-        <Text className={`font-mono-bold text-lg ${ok ? 'text-primary' : 'text-amber-700'}`}>{value}</Text>
-        <Text className={`rounded-xs px-1 font-mono text-[10px] ${ok ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-800'}`}>{tag}</Text>
-      </View>
+    <View
+      className={`justify-center gap-1.5 px-7 ${
+        first ? 'flex-1' : desktop ? 'flex-1 border-l border-line' : 'border-t border-line-soft pt-4'
+      }`}
+    >
+      <Text className="font-sans-semibold text-[13px] text-ink-muted">{label}</Text>
+      <Text className="font-sans-black text-[26px] leading-[30px] tracking-[-0.52px] text-ink">{value}</Text>
+      <Text className="font-sans text-[13px] text-ink-muted">{note}</Text>
     </View>
   );
 }
 
-function Check({ ok, text }: { ok: boolean; text: string }) {
+function StepHeading({ step, title }: { step: string; title: string }) {
   return (
-    <View className="flex-row items-center gap-1.5">
-      {ok ? <CheckCircle2 size={14} color="#047857" /> : <AlertTriangle size={14} color="#b45309" />}
-      <Text className="font-sans text-[11px] text-ink">{text}</Text>
+    <View className="flex-row items-center gap-3.5">
+      <View className="h-[34px] w-[34px] items-center justify-center rounded-full border border-line-card bg-white">
+        <Text className="font-sans-bold text-[14px] text-ink">{step}</Text>
+      </View>
+      <Text className="font-sans-black text-[24px] leading-[29px] tracking-[-0.48px] text-ink">{title}</Text>
+    </View>
+  );
+}
+
+function StatBlock({ label, value, highlight }: { label: string; value: string | number; highlight?: boolean }) {
+  return (
+    <View className="min-w-[110px] gap-1">
+      <Text className="font-sans-semibold text-[13px] text-ink-muted">{label}</Text>
+      <Text className={highlight ? 'font-sans-black text-[24px] leading-[28px] text-ink' : 'font-sans-bold text-[16px] text-ink'}>
+        {value}
+      </Text>
+    </View>
+  );
+}
+
+function CheckRow({ ok, text }: { ok: boolean; text: string }) {
+  return (
+    <View className="flex-row items-center gap-2">
+      {ok ? <CheckCircle2 size={15} color="#047857" /> : <AlertTriangle size={15} color="#b45309" />}
+      <Text className="font-sans text-[13px] text-ink">{text}</Text>
     </View>
   );
 }
