@@ -100,3 +100,20 @@ Deno.test('devolve ao app os cabeçalhos que o PUT precisa mandar, com o checksu
   assertEquals(body.headers, { 'Content-Type': 'image/png', 'x-amz-checksum-sha256': hexParaBase64(SHA) });
   restaurar();
 });
+
+// R-12: com `quarantine: true`, o arquivo vai para a quarentena; só a r2-confirm-upload,
+// depois de conferir o arquivo, grava em projects/. Sem a opção, nada muda (app atual).
+Deno.test('com quarantine: true, a URL de envio aponta para a quarentena do lote (R-12)', async () => {
+  simular(tokenValido, tabela('batches', [lote(USUARIO.id)]), tabela('image_versions', []));
+  const body = await (await handler(post({ ...PEDIDO, quarantine: true }, comToken))).json();
+  assertEquals(body.storage_key, `quarantine/proj-1/lote-1/${SHA}.png`);
+  assertEquals(new URL(body.upload_url).pathname, `/ki67-teste/quarantine/proj-1/lote-1/${SHA}.png`);
+  restaurar();
+});
+
+Deno.test('sem a opção quarantine, a chave continua em projects/ (o app atual não quebra) (R-12)', async () => {
+  simular(tokenValido, tabela('batches', [lote(USUARIO.id)]), tabela('image_versions', []));
+  const body = await (await handler(post(PEDIDO, comToken))).json();
+  assert(body.storage_key.startsWith('projects/'));
+  restaurar();
+});
