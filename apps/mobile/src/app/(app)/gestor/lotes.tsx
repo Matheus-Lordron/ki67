@@ -79,7 +79,7 @@ export default function BatchesAndImagesScreen() {
 
   const upload = async () => {
     if (!batchId || !picked.length) return;
-    // Higieniza metadados, calcula o SHA-256 e envia (modo real: R2 + conferência no servidor + pré-anotação).
+    // Higieniza metadados, calcula o SHA-256 e envia (modo real: R2 + register_image + pré-anotação).
     const result = await uploadImages(batchId, picked, setProgress);
     setSummary(result);
     setPicked([]);
