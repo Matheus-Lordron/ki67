@@ -244,7 +244,6 @@ export type RpcName =
   | 'log_event'
   | 'verify_audit_chain'
   | 'admin_update_user'
-  | 'register_image'
   | 'set_pre_annotation'
   | 'assign_evaluators'
   | 'assign_evaluators_to_batch'

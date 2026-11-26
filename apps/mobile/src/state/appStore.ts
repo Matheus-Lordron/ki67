@@ -179,7 +179,7 @@ interface AppState {
   /** `requestId`: chave gerada ao abrir o formulário; reenviar com a mesma chave não duplica. */
   createBatch: (projectId: string, name: string, evaluatorsPerImage: number, description: string, requestId: string) => Promise<Result>;
   registerImages: (batchId: string, files: NewImageInput[]) => Promise<{ uploaded: string[]; duplicates: string[] }>;
-  /** Higieniza, calcula o SHA-256 e envia (modo real: R2 + register_image + pré-anotação). */
+  /** Higieniza, calcula o SHA-256 e envia (modo real: R2 + conferência no servidor + pré-anotação). */
   uploadImages: (batchId: string, assets: DocumentPickerAsset[], onProgress?: (text: string) => void) => Promise<UploadSummary>;
   assignEvaluators: (imageIds: string[], evaluatorIds: string[]) => Promise<Result<{ created: number }>>;
 
@@ -612,7 +612,7 @@ export const useAppStore = create<AppState>()((set, get) => {
 
     uploadImages: async (batchId, assets, onProgress) => {
       if (real) {
-        // R2 (URL assinada) + register_image + pré-anotação por limiar de cor (só na web: D10).
+        // R2 (quarentena) + r2-confirm-upload + pré-anotação por limiar de cor (só na web: D10).
         const report = await uploadImagesToBatch(assets, {
           batchId,
           onProgress: (done, total, name) => onProgress?.(`Enviado ${done} de ${total}: ${name}`),
